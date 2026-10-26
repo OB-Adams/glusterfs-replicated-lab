@@ -1,0 +1,50 @@
+# Drill 1: graceful shutdown of gluster3 during writes
+# Output pasted from the lab session. Commands were run as root on gluster2.
+# Final verification of file counts and checksums across bricks was performed
+# but its output was not archived.
+
+## During the outage (gluster3 powered off, writer still running)
+root@gluster2:~# gluster volume heal gv0 info summary
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 273
+Number of entries in heal pending: 273
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 273
+Number of entries in heal pending: 273
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Transport endpoint is not connected
+Total Number of entries: -
+Number of entries in heal pending: -
+Number of entries in split-brain: -
+Number of entries possibly healing: -
+
+## After gluster3 was started again (self-heal in progress)
+root@gluster2:~# gluster volume heal gv0 info summary
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 30
+Number of entries in heal pending: 30
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 27
+Number of entries in heal pending: 26
+Number of entries in split-brain: 0
+Number of entries possibly healing: 1
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0

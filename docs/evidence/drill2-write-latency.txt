@@ -1,0 +1,21 @@
+# Drill 2: hard failure (gluster3 force-stopped from the hypervisor during writes)
+# Output pasted from the lab session, run on the client (gluster4).
+# Each line is: file number, seconds taken to create that file.
+# One run per setting. Normal writes in this lab take roughly 0.027 to 0.029 s.
+
+## drill2a: network.ping-timeout at the default (42 s)
+root@gluster4:~# sort -k2 -rn drill2a-latency.log | head -3
+27 70.323
+237 0.028
+188 0.027
+
+## drill2b: network.ping-timeout set to 10 s
+root@gluster4:~# sort -k2 -rn drill2b-latency.log | head -3
+31 13.215
+259 0.029
+229 0.028
+
+# The stall is a single write in each run. After the client drops the dead
+# brick, writes return to normal speed.
+# The stalls exceeded the configured timeout (70.3 s vs 42 s, 13.2 s vs 10 s).
+# The reason is not established.

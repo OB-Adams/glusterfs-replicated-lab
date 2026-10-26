@@ -1,0 +1,27 @@
+# Drill 3: two of three servers shut down gracefully (gluster3, then gluster2)
+# Excerpt of /var/log/glusterfs/mnt-gv0.log on the client (gluster4).
+# Abridged: repeated identical LOOKUP failures trimmed. Private address masked.
+# Client index mapping: gv0-client-0 = gluster1, client-1 = gluster2, client-2 = gluster3.
+
+[2026-10-25 22:24:51.095360 +0000] I [MSGID: 114018] [client.c:2242:client_rpc_notify] 0-gv0-client-2: disconnected from client, process will keep trying to connect glusterd until brick's port is available [{conn-name=gv0-client-2}]
+[2026-10-25 22:25:18.600264 +0000] W [socket.c:751:__socket_rwv] 0-gv0-client-1: readv on 192.168.x.x:60839 failed (No data available)
+[2026-10-25 22:25:18.600352 +0000] I [MSGID: 114018] [client.c:2242:client_rpc_notify] 0-gv0-client-1: disconnected from client, process will keep trying to connect glusterd until brick's port is available [{conn-name=gv0-client-1}]
+[2026-10-25 22:25:18.600368 +0000] W [MSGID: 108001] [afr-common.c:6410:afr_notify] 0-gv0-replicate-0: Client-quorum is not met
+[2026-10-25 22:25:19.243603 +0000] W [fuse-bridge.c:1403:fuse_attr_cbk] 0-glusterfs-fuse: 19419: STAT() /drill3 => -1 (Transport endpoint is not connected)
+[2026-10-25 22:25:20.251096 +0000] W [MSGID: 108027] [afr-common.c:2889:afr_attempt_readsubvol_set] 0-gv0-replicate-0: no read subvols for /
+[2026-10-25 22:25:20.251223 +0000] W [fuse-bridge.c:1403:fuse_attr_cbk] 0-glusterfs-fuse: 19420: LOOKUP() / => -1 (Transport endpoint is not connected)
+(further LOOKUP() / failures every second, 22:25:21 to 22:27:36, trimmed)
+
+## Attempt to mount again while only gluster1 was up (excerpt of the new mount's log)
+[2026-10-25 22:40:07.345547 +0000] I [MSGID: 114046] [client-handshake.c:621:client_setvolume_cbk] 0-gv0-client-0: Connected, attached to remote volume [{conn-name=gv0-client-0}, {remote_subvol=/data/glusterfs/brick1/vol}]
+[2026-10-25 22:40:07.345558 +0000] I [MSGID: 108005] [afr-common.c:6025:__afr_handle_child_up_event] 0-gv0-replicate-0: Subvolume 'gv0-client-0' came back up; going online.
+[2026-10-25 22:40:10.461912 +0000] I [fuse-bridge.c:5298:fuse_init] 0-glusterfs-fuse: FUSE inited with protocol versions: glusterfs 7.24 kernel 7.37
+[2026-10-25 22:40:10.464304 +0000] W [MSGID: 108027] [afr-common.c:2889:afr_attempt_readsubvol_set] 0-gv0-replicate-0: no read subvols for /
+[2026-10-25 22:40:10.464486 +0000] E [fuse-bridge.c:5365:fuse_first_lookup] 0-fuse: first lookup on root failed (Transport endpoint is not connected)
+[2026-10-25 22:40:10.474209 +0000] I [fuse-bridge.c:6308:fuse_thread_proc] 0-fuse: initiating unmount of /mnt/gv0
+
+## Client terminal during that attempt
+root@gluster4:~# mount -t glusterfs -o backup-volfile-servers=gluster2:gluster3 gluster1:/gv0 /mnt/gv0
+Mount failed. Check the log file  for more details.
+
+# After gluster2 was started again, the same mount command succeeded and reads worked.

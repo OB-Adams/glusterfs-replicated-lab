@@ -1,0 +1,13 @@
+# Drill 4: observation while holding bricks down on purpose
+# Run as root on gluster2 right after starting glusterd with gluster1 and gluster3 stopped.
+# The brick was not running. Running "gluster volume start gv0 force" was needed to start it.
+
+root@gluster2:~# sudo gluster volume status gv0
+Status of volume: gv0
+Gluster process                             TCP Port  RDMA Port  Online  Pid
+------------------------------------------------------------------------------
+Brick gluster2:/data/glusterfs/brick1/vol   N/A       N/A        N       N/A
+
+Task Status of Volume gv0
+------------------------------------------------------------------------------
+There are no active volume tasks

@@ -1,0 +1,26 @@
+# Drill 4: split-brain on /drill4/victim.txt, resolution with the CLI policies
+# Output pasted from the lab session.
+# Version A and version B of the file had the same length, so size could not decide.
+
+## Attempt 1 (run on gluster2 after quorum and self-heal settings had already been restored)
+root@gluster2:~# sudo gluster volume heal gv0 split-brain bigger-file /drill4/victim.txt
+Healing /drill4/victim.txt failed: File not in split-brain.
+Volume heal failed.
+root@gluster2:~# sudo gluster volume heal gv0 split-brain latest-mtime /drill4/victim.txt
+Healing /drill4/victim.txt failed: File not in split-brain.
+Volume heal failed.
+
+## Attempt 2 (test redone; manual resolution run first, on gluster1, before restoring settings)
+root@gluster1:~# sudo gluster volume heal gv0 split-brain bigger-file /drill4/victim.txt
+Healing /drill4/victim.txt failed: No bigger file.
+Volume heal failed.
+root@gluster1:~# sudo gluster volume heal gv0 split-brain latest-mtime /drill4/victim.txt
+Healing /drill4/victim.txt failed: No difference in mtime.
+Volume heal failed.
+root@gluster1:~# sudo gluster volume heal gv0 split-brain source-brick gluster1:/data/glusterfs/brick1/vol /drill4/victim.txt
+Healed /drill4/victim.txt.
+
+# Other observations from this drill (not archived as output):
+# - A mount that had written the file itself kept returning version B, even
+#   though the bricks disagreed.
+# - After unmounting and mounting again, reading the file gave: Input/output error.
