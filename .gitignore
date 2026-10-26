@@ -1,0 +1,17 @@
+# Secrets and credentials
+.env
+*.pem
+*.key
+*.crt
+id_rsa*
+*.vault
+
+# Local and temporary files
+*.log
+*.bak
+*.swp
+*.tmp
+.DS_Store
+
+# Raw screenshots before cropping and review
+screenshots/raw/
