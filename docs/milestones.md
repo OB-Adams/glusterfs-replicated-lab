@@ -5,7 +5,7 @@ Status values: Planned, In progress, Blocked, Complete. A milestone is marked Co
 | # | Milestone | Status |
 |---|---|---|
 | 1 | Replicated cluster and failure drills | Complete |
-| 2 | Brick replacement, expansion and rebalance | Planned |
+| 2 | Brick replacement, expansion and rebalance | In progress |
 | 3 | Security and monitoring | Planned |
 | 4 | Benchmark baseline | Planned |
 | 5 | Ansible automation | Planned |
@@ -42,15 +42,23 @@ Status values: Planned, In progress, Blocked, Complete. A milestone is marked Co
 
 **Completion criteria.** Documentation committed, evidence archived, screenshots captured and embedded in the README.
 
-## Milestone 2: brick replacement, expansion and rebalance (planned)
+## Milestone 2: brick replacement, expansion and rebalance (in progress)
 
 **Goal.** Replace a failed brick and heal it fully, then add a second brick per server to make the volume distributed-replicated and rebalance it.
 
+| Step | Description | Status |
+|---|---|---|
+| 2a | Rebuild a destroyed brick at the same path with `reset-brick` | Complete |
+| 2b | Replace a brick at a different path or host with `replace-brick` | Planned |
+| 2c | Add a second brick per server (2 x 3) and rebalance | Planned |
+
 **Acceptance criteria.**
 
-- A wiped brick is replaced with `replace-brick` and heals to a checksum-identical state.
-- The volume shows `2 x 3` after expansion and a rebalance completes.
-- File placement is explained using the hash layout attributes on the bricks.
+- 2a: a destroyed brick is re-admitted and heals to a checksum-identical state.
+- 2b: a brick is replaced at a different path or host and heals to a checksum-identical state.
+- 2c: the volume shows `2 x 3` after expansion, a rebalance completes, and file placement is explained using the hash layout attributes on the bricks.
+
+**2a result (2026-10-27).** Met. Both `reset-brick` steps and `heal full` returned `SUCCESS`. The heal did not start in the two minutes between the commit and the command; once issued, the full sweep took about 26 seconds. Both directories came back with matching file counts and digests on all three servers, including the rebuilt one. Full write-up in [brick-replacement.md](brick-replacement.md).
 
 ## Milestone 3: security and monitoring (planned)
 

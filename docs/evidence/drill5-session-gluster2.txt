@@ -1,0 +1,23 @@
+# Drill 5: brick rebuild on gluster3, session log from gluster2
+# Captured 2026-10-27, times UTC. Output as produced, unedited.
+# gluster2 is the other surviving source brick. Its role in the drill is to confirm
+# that the digests agree across all three servers, so only the comparisons are recorded.
+# The drill5 comparison was run twice; both runs returned the same values.
+#
++ ./scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5
+host:   gluster2
+path:   /data/glusterfs/brick1/vol/drill5
+files:  151
+digest: 2dadf1bbe16a50641b96bb6fc95daed44e5cec26f5745f8c930e00f9500ce891
+
++ ./scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5
+host:   gluster2
+path:   /data/glusterfs/brick1/vol/drill5
+files:  151
+digest: 2dadf1bbe16a50641b96bb6fc95daed44e5cec26f5745f8c930e00f9500ce891
+
++ ./scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5-during
+host:   gluster2
+path:   /data/glusterfs/brick1/vol/drill5-during
+files:  100
+digest: f7dbbb3a9d724273b71ec9f9c97feb0001180bcddc44761d5f2fa0749830e27b

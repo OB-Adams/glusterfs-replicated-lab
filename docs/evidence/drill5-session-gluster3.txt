@@ -1,0 +1,194 @@
+# Drill 5: brick rebuild on gluster3, session log from gluster3
+# Captured 2026-10-27, times UTC. Output as produced, unedited.
+# gluster3 is the node whose brick was destroyed and rebuilt.
+#
+# Note on the two greps at the end: they were run without a time filter, so they also
+# list entries from earlier, abandoned attempts on 25 to 27 October. The entries for
+# this run are the ones timestamped 2026-10-27 14:54 to 15:00. drill5-logs.txt holds
+# the same two greps limited to this run.
+#
++ ./scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5
+host:   gluster3
+path:   /data/glusterfs/brick1/vol/drill5
+files:  151
+digest: 2dadf1bbe16a50641b96bb6fc95daed44e5cec26f5745f8c930e00f9500ce891
+
++ sudo lvs vg_gluster
+  LV       VG         Attr       LSize Pool     Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  brick1   vg_gluster Vwi-aotz-- 8.00g thinpool        3.33                                   
+  thinpool vg_gluster twi-aotz-- 9.00g                 2.96   11.39                           
+
++ df -hT /data/glusterfs/brick1
+Filesystem                    Type  Size  Used Avail Use% Mounted on
+/dev/mapper/vg_gluster-brick1 xfs   8.0G  348M  7.6G   5% /data/glusterfs/brick1
+
++ date -u
+Tue Oct 27 02:54:58 PM UTC 2026
+
++ sudo gluster volume reset-brick gv0 gluster3:/data/glusterfs/brick1/vol start
+volume reset-brick: success: reset-brick start operation successful
+
++ sudo umount /data/glusterfs/brick1
+
++ sudo lvremove -y vg_gluster/brick1
+  Logical volume "brick1" successfully removed.
+
++ sudo lvcreate -V 8G --thin -n brick1 vg_gluster/thinpool
+  Logical volume "brick1" created.
+
++ sudo mkfs.xfs -i size=512 /dev/vg_gluster/brick1
+meta-data=/dev/vg_gluster/brick1 isize=512    agcount=8, agsize=262144 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1    bigtime=1 inobtcount=1 nrext64=0
+data     =                       bsize=4096   blocks=2097152, imaxpct=25
+         =                       sunit=16     swidth=16 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=16384, version=2
+         =                       sectsz=512   sunit=16 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+Discarding blocks...Done.
+
++ sudo mount /data/glusterfs/brick1
+
++ sudo mkdir /data/glusterfs/brick1/vol
+
++ sudo restorecon -Rv /data/glusterfs
+Relabeled /data/glusterfs/brick1 from system_u:object_r:unlabeled_t:s0 to system_u:object_r:glusterd_brick_t:s0
+Relabeled /data/glusterfs/brick1/vol from unconfined_u:object_r:unlabeled_t:s0 to unconfined_u:object_r:glusterd_brick_t:s0
+
++ sudo lvs vg_gluster
+  LV       VG         Attr       LSize Pool     Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  brick1   vg_gluster Vwi-aotz-- 8.00g thinpool        0.79                                   
+  thinpool vg_gluster twi-aotz-- 9.00g                 0.70   10.77                           
+
++ df -hT /data/glusterfs/brick1
+Filesystem                    Type  Size  Used Avail Use% Mounted on
+/dev/mapper/vg_gluster-brick1 xfs   8.0G   90M  7.9G   2% /data/glusterfs/brick1
+
++ ls -la /data/glusterfs/brick1/vol
+total 0
+drwxr-xr-x. 2 root root  6 Oct 27 14:56 .
+drwxr-xr-x. 3 root root 17 Oct 27 14:56 ..
+
++ ls -Zd /data/glusterfs/brick1/vol
+unconfined_u:object_r:glusterd_brick_t:s0 /data/glusterfs/brick1/vol
+
++ date -u
+Tue Oct 27 02:58:29 PM UTC 2026
+
++ sudo gluster volume reset-brick gv0 gluster3:/data/glusterfs/brick1/vol gluster3:/data/glusterfs/brick1/vol commit force
+volume reset-brick: success: reset-brick commit force operation successful
+
++ sudo gluster volume status gv0
+Status of volume: gv0
+Gluster process                             TCP Port  RDMA Port  Online  Pid
+------------------------------------------------------------------------------
+Brick gluster1:/data/glusterfs/brick1/vol   53926     0          Y       2203 
+Brick gluster2:/data/glusterfs/brick1/vol   54486     0          Y       1984 
+Brick gluster3:/data/glusterfs/brick1/vol   N/A       N/A        N       N/A  
+Self-heal Daemon on localhost               N/A       N/A        Y       2506 
+Self-heal Daemon on gluster1                N/A       N/A        Y       2436 
+Self-heal Daemon on gluster2                N/A       N/A        Y       2340 
+ 
+Task Status of Volume gv0
+------------------------------------------------------------------------------
+There are no active volume tasks
+ 
+14:59:03
+Brick gluster1:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 91
+Brick gluster2:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 91
+Brick gluster3:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 0
+14:59:33
+Brick gluster1:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 91
+Brick gluster2:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 91
+Brick gluster3:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 0
+15:00:04
+Brick gluster1:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 91
+Brick gluster2:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 91
+Brick gluster3:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 0
+
++ date -u
+Tue Oct 27 03:00:29 PM UTC 2026
+
++ sudo gluster volume heal gv0 full
+Launching heal operation to perform full self heal on volume gv0 has been successful 
+Use heal info commands to check status.
+15:00:29
+Brick gluster1:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 89
+Brick gluster2:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 89
+Brick gluster3:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 0
+15:00:44
+Brick gluster1:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 283
+Brick gluster2:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 263
+Brick gluster3:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 0
+15:00:59
+Brick gluster1:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 0
+Brick gluster2:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 0
+Brick gluster3:/data/glusterfs/brick1/vol
+Number of entries in heal pending: 0
+
++ ./scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5
+host:   gluster3
+path:   /data/glusterfs/brick1/vol/drill5
+files:  151
+digest: 2dadf1bbe16a50641b96bb6fc95daed44e5cec26f5745f8c930e00f9500ce891
+
++ ./scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5-during
+host:   gluster3
+path:   /data/glusterfs/brick1/vol/drill5-during
+files:  100
+digest: f7dbbb3a9d724273b71ec9f9c97feb0001180bcddc44761d5f2fa0749830e27b
+
++ sudo grep -iE reset-brick|heal /var/log/glusterfs/cmd_history.log
+[2026-10-25 23:47:13.650103 +0000]  : volume reset gv0 cluster.self-heal-daemon : SUCCESS
+[2026-10-25 23:47:13.782982 +0000]  : volume reset gv0 cluster.data-self-heal : SUCCESS
+[2026-10-25 23:47:13.910848 +0000]  : volume reset gv0 cluster.metadata-self-heal : SUCCESS
+[2026-10-25 23:47:14.036806 +0000]  : volume reset gv0 cluster.entry-self-heal : SUCCESS
+[2026-10-25 23:51:58.263231 +0000]  : volume set gv0 cluster.self-heal-daemon off : SUCCESS
+[2026-10-25 23:51:58.398492 +0000]  : volume set gv0 cluster.data-self-heal off : SUCCESS
+[2026-10-25 23:51:58.527806 +0000]  : volume set gv0 cluster.metadata-self-heal off : SUCCESS
+[2026-10-25 23:51:58.648854 +0000]  : volume set gv0 cluster.entry-self-heal off : SUCCESS
+[2026-10-26 23:31:30.536165 +0000]  : volume reset-brick gv0 gluster3:/data/glusterfs/brick1/vol start : SUCCESS
+[2026-10-26 23:34:48.564315 +0000]  : volume reset-brick gv0 gluster3:/data/glusterfs/brick1/vol gluster3:/data/glusterfs/brick1/vol commit force : SUCCESS
+[2026-10-26 23:37:30.528607 +0000]  : volume heal gv0 full : SUCCESS
+[2026-10-26 23:49:51.930217 +0000]  : volume reset-brick gv0 gluster3:/data/glusterfs/brick1/vol start : SUCCESS
+[2026-10-26 23:51:56.404571 +0000]  : volume reset-brick gv0 gluster3:/data/glusterfs/brick1/vol gluster3:/data/glusterfs/brick1/vol commit force : SUCCESS
+[2026-10-27 00:06:12.374749 +0000]  : volume reset-brick gv0 gluster3:/data/glusterfs/brick1 start : FAILED : brick: gluster3:/data/glusterfs/brick1 does not exist in volume: gv0
+[2026-10-27 00:06:23.526554 +0000]  : volume reset-brick gv0 gluster3:/data/glusterfs/brick1/vol start : SUCCESS
+[2026-10-27 00:11:45.083182 +0000]  : volume reset-brick gv0 gluster3:/data/glusterfs/brick1/vol gluster3:/data/glusterfs/brick1/vol commit force : SUCCESS
+[2026-10-27 00:12:57.472065 +0000]  : volume heal gv0 full : SUCCESS
+[2026-10-27 04:37:51.022723 +0000]  : volume heal gv0 full : FAILED : Glusterd Syncop Mgmt brick op 'Heal' failed. Please check glustershd log file for details.
+[2026-10-27 04:51:10.064560 +0000]  : volume reset-brick gv0 gluster3:/data/glusterfs/brick1/vol gluster3:/data/glusterfs/brick1/vol commit force : SUCCESS
+[2026-10-27 14:54:59.936352 +0000]  : volume reset-brick gv0 gluster3:/data/glusterfs/brick1/vol start : SUCCESS
+[2026-10-27 14:58:32.018816 +0000]  : volume reset-brick gv0 gluster3:/data/glusterfs/brick1/vol gluster3:/data/glusterfs/brick1/vol commit force : SUCCESS
+[2026-10-27 15:00:29.066255 +0000]  : volume heal gv0 full : SUCCESS
+
++ sudo grep -i full sweep /var/log/glusterfs/glustershd.log
+[2026-10-25 20:22:43.790654 +0000] I [MSGID: 108026] [afr-self-heald.c:1117:afr_shd_full_healer] 0-gv0-replicate-0: starting full sweep on subvol gv0-client-2 
+[2026-10-25 20:22:44.166452 +0000] I [MSGID: 108026] [afr-self-heald.c:1127:afr_shd_full_healer] 0-gv0-replicate-0: finished full sweep on subvol gv0-client-2 
+[2026-10-25 20:23:04.767149 +0000] I [MSGID: 108026] [afr-self-heald.c:1117:afr_shd_full_healer] 0-gv0-replicate-0: starting full sweep on subvol gv0-client-2 
+[2026-10-25 20:23:05.124792 +0000] I [MSGID: 108026] [afr-self-heald.c:1127:afr_shd_full_healer] 0-gv0-replicate-0: finished full sweep on subvol gv0-client-2 
+[2026-10-26 23:37:30.528010 +0000] I [MSGID: 108026] [afr-self-heald.c:1117:afr_shd_full_healer] 0-gv0-replicate-0: starting full sweep on subvol gv0-client-2 
+[2026-10-26 23:37:48.862652 +0000] I [MSGID: 108026] [afr-self-heald.c:1127:afr_shd_full_healer] 0-gv0-replicate-0: finished full sweep on subvol gv0-client-2 
+[2026-10-27 00:12:57.470835 +0000] I [MSGID: 108026] [afr-self-heald.c:1117:afr_shd_full_healer] 0-gv0-replicate-0: starting full sweep on subvol gv0-client-2 
+[2026-10-27 00:13:19.352777 +0000] I [MSGID: 108026] [afr-self-heald.c:1127:afr_shd_full_healer] 0-gv0-replicate-0: finished full sweep on subvol gv0-client-2 
+[2026-10-27 15:00:29.065332 +0000] I [MSGID: 108026] [afr-self-heald.c:1117:afr_shd_full_healer] 0-gv0-replicate-0: starting full sweep on subvol gv0-client-2 
+[2026-10-27 15:00:55.587833 +0000] I [MSGID: 108026] [afr-self-heald.c:1127:afr_shd_full_healer] 0-gv0-replicate-0: finished full sweep on subvol gv0-client-2 

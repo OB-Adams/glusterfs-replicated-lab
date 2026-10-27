@@ -113,9 +113,13 @@ Evidence: [drill4-split-brain-resolution.txt](evidence/drill4-split-brain-resolu
 
 **Reference.** [Resolving split-brain](https://docs.gluster.org/en/latest/Troubleshooting/resolving-splitbrain/) lists the policies and the heal info commands used.
 
-## Not yet done
+## Related and not yet done
 
-- Replacing a failed brick (`replace-brick`) and the resulting full heal.
+Destroying a brick and rebuilding it in place with `reset-brick`, and the full heal that follows, is drill 5 in [brick-replacement.md](brick-replacement.md).
+
+Still to do:
+
+- Replacing a brick at a different path or host with `replace-brick`.
 - Adding bricks, rebalancing, and examining file placement.
 - Repeating the timing measurements several times.
 - Re-running the drills with TLS enabled.

@@ -1,0 +1,15 @@
+# Drill 5: Gluster's own logs on gluster3, limited to this run
+# Captured 2026-10-27 immediately after the drill. Times UTC.
+# The greps are tailed so that only this run's entries appear. The unfiltered output,
+# which also covers earlier abandoned attempts, is at the end of
+# drill5-session-gluster3.txt.
+# gv0-client-2 is the brick on gluster3, the one that was rebuilt.
+
+root@gluster3:~# grep -iE "reset-brick|heal" /var/log/glusterfs/cmd_history.log | tail -3
+[2026-10-27 14:54:59.936352 +0000]  : volume reset-brick gv0 gluster3:/data/glusterfs/brick1/vol start : SUCCESS
+[2026-10-27 14:58:32.018816 +0000]  : volume reset-brick gv0 gluster3:/data/glusterfs/brick1/vol gluster3:/data/glusterfs/brick1/vol commit force : SUCCESS
+[2026-10-27 15:00:29.066255 +0000]  : volume heal gv0 full : SUCCESS
+
+root@gluster3:~# sudo grep -i "full sweep" /var/log/glusterfs/glustershd.log | tail -2
+[2026-10-27 15:00:29.065332 +0000] I [MSGID: 108026] [afr-self-heald.c:1117:afr_shd_full_healer] 0-gv0-replicate-0: starting full sweep on subvol gv0-client-2
+[2026-10-27 15:00:55.587833 +0000] I [MSGID: 108026] [afr-self-heald.c:1127:afr_shd_full_healer] 0-gv0-replicate-0: finished full sweep on subvol gv0-client-2

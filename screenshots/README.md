@@ -9,6 +9,7 @@ This folder holds screenshots of real terminal output from the lab. Each one is 
 - Crop to the relevant output. Prefer a few clear images over many similar ones.
 - Check each image for private addresses, tokens or personal information before committing.
 - Use the exact file names below. The main README refers to them.
+- Where a command sequence is long or its output scrolls, the commands may be re-run afterwards in a clean terminal to capture a readable image. Screenshots 09 and 10 were captured that way, so their timestamps and counters differ from the session logs in `../docs/evidence`, which remain the record of the drill itself.
 
 ## The set
 
@@ -24,8 +25,12 @@ This folder holds screenshots of real terminal output from the lab. Each one is 
 | `07-drill4-split-brain-eio.png` | gluster4 | `cat /mnt/gv0/drill4/victim.txt` from a fresh mount | `Input/output error` on the split-brain file |
 | `07-drill4-split-brain-xattrs.png` | each server | `sudo getfattr -d -m . -e hex <brick path>/drill4/victim.txt` | The conflicting `trusted.afr.gv0-client-N` blame attributes |
 | `08-drill4-source-brick-resolution.png` | gluster1 | `bigger-file`, `latest-mtime`, then `source-brick` heal commands on the split-brain file | Two refusals and the `Healed` message |
+| `09-drill5-brick-rebuilt-empty.png` | gluster3 | `lvcreate`, `mkfs.xfs`, `mount`, `mkdir`, `restorecon`, then `lvs vg_gluster`, `df -hT`, `ls -la` and `ls -Zd` on the brick | The replacement brick before it is re-admitted: new thin LV, XFS mounted, empty `vol` directory with the `glusterd_brick_t` label |
+| `10-drill5-heal-progress.png` | gluster3 | `sudo gluster volume heal gv0 full`, then `sudo gluster volume heal gv0 info summary` twice | Entries pending on the two source bricks and none on the rebuilt one, then zero everywhere |
+| `11-drill5-digests-match.png` | each server | `./scripts/compare-bricks.sh` on `drill5` and `drill5-during` | 151 files and 100 files, each with the same digest on all three servers |
+| `12-drill5-reset-brick-logs.png` | gluster3 | `grep -iE "reset-brick\|heal" /var/log/glusterfs/cmd_history.log \| tail -3` and `sudo grep -i "full sweep" /var/log/glusterfs/glustershd.log \| tail -2` | The `reset-brick` and `heal full` commands with their results, and the full sweep on the rebuilt brick |
 
-The procedures behind these drills are in [../docs/failure-drills.md](../docs/failure-drills.md).
+The procedures are in [../docs/failure-drills.md](../docs/failure-drills.md) for drills 1 to 4 and [../docs/brick-replacement.md](../docs/brick-replacement.md) for drill 5.
 
 ## Adding another screenshot
 
