@@ -8,7 +8,7 @@ This document explains the components of the lab and how data and control traffi
 |---|---|---|
 | `glusterd` | gluster1, gluster2, gluster3 | Management daemon. Holds pool and volume configuration, starts brick processes, answers CLI commands. Listens on 24007/tcp. |
 | `glusterfsd` (brick process) | gluster1, gluster2, gluster3 | One per brick. Serves file operations for that brick on its own port. |
-| Brick | gluster1, gluster2, gluster3 | A directory on a local XFS filesystem: `/data/glusterfs/brick1/vol`. |
+| Brick | gluster1, gluster2, gluster3 | A directory on a local XFS filesystem: `/data/glusterfs/brick1/vol`, except on gluster3, where milestone 2b moved it to `/data/glusterfs/brick2/vol` on a second disk. |
 | Self-heal daemon | gluster1, gluster2, gluster3 | Finds files that a brick missed and copies them from a good replica. |
 | FUSE client | gluster4 | Mounts `gv0`. Fetches the volume description, then talks to every brick directly and performs the replication itself. |
 
@@ -30,7 +30,7 @@ flowchart LR
         end
         subgraph s3["gluster3"]
             G3["glusterd"]
-            B3["brick1<br/>XFS on LVM thin"]
+            B3["brick2<br/>XFS on LVM thin<br/>second disk, since milestone 2b"]
         end
     end
     C -->|"24007/tcp: fetch volfile at mount"| G1

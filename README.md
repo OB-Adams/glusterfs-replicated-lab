@@ -340,11 +340,11 @@ Raw command output and log excerpts from the drills are in [docs/evidence](docs/
 
 ![replace-brick commit and the new brick path](screenshots/14-drill6-replace-brick-commit.png)
 
-*`replace-brick ... commit force` succeeding, `Brick3` now on `/data/glusterfs/brick2/vol`, and the new brick going from offline to online within seconds.*
+*`replace-brick ... commit force` succeeding, `Brick3` now on `/data/glusterfs/brick2/vol` and already online, and the commit recorded in Gluster's command history.*
 
 ![Self-heal daemon log after replace-brick](screenshots/15-drill6-heal-from-shd-log.png)
 
-*The self-heal daemon log on a source server: the new brick attaching, the heal of the root directory starting immediately, and the last file healed, with no heal command issued.*
+*The self-heal daemon log on `gluster1`: the new brick attaching 20 ms after the commit shown above, and the heal of the root directory starting by itself a tenth of a second later.*
 
 ![Digests compared across the three servers](screenshots/16-drill6-digests-match.png)
 

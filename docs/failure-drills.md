@@ -115,11 +115,10 @@ Evidence: [drill4-split-brain-resolution.txt](evidence/drill4-split-brain-resolu
 
 ## Related and not yet done
 
-Destroying a brick and rebuilding it in place with `reset-brick`, and the full heal that follows, is drill 5 in [brick-replacement.md](brick-replacement.md).
+Destroying a brick and rebuilding it in place with `reset-brick`, and the full heal that follows, is drill 5 in [brick-replacement.md](brick-replacement.md). Moving a brick to a new disk with `replace-brick` is drill 6 in the same document.
 
 Still to do:
 
-- Replacing a brick at a different path or host with `replace-brick`.
 - Adding bricks, rebalancing, and examining file placement.
 - Repeating the timing measurements several times.
 - Re-running the drills with TLS enabled.

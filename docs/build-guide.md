@@ -8,7 +8,7 @@ Tested on: UTM guests (aarch64) running a RHEL-family OS. Record your exact OS r
 
 | VM | Role |
 |---|---|
-| `gluster1`, `gluster2`, `gluster3` | Storage servers, each with one extra virtual disk |
+| `gluster1`, `gluster2`, `gluster3` | Storage servers, each with one extra virtual disk (a second is added in milestone 2b, see [brick-replacement.md](brick-replacement.md)) |
 | `gluster4` | Client |
 
 On every VM, add all four hostnames to `/etc/hosts` with static addresses and enable time sync:
