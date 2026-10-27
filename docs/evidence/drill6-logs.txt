@@ -1,0 +1,165 @@
+# Drill 6: Gluster's own logs, limited to this run
+# Captured 2026-10-27 immediately after the drill. Times UTC.
+# Each section was extracted on the machine named, from the start of the run onwards:
+#   sudo awk -v t='[2026-10-27 19:23' '$0 >= t' <log> | grep -iE '<pattern>'
+# gv0-client-2 is the third brick of the replica set: gluster3's brick, on brick2 after the commit.
+# The commit ran on gluster3 at 19:28:10.
+
+## gluster4: client mount log, /var/log/glusterfs/mnt-gv0.log
+# pattern: 'graph|client-2'
+# The old brick's connection drops at 19:28:10.5, the new graph attaches gv0-client-2 to
+# /data/glusterfs/brick2/vol at 19:28:13.7, and the client switches to it at 19:28:14.1.
+# The last line is written out of order by the old graph as it is torn down.
+
+[2026-10-27 19:28:10.506431 +0000] W [socket.c:751:__socket_rwv] 0-gv0-client-2: readv on 192.168.0.163:59702 failed (No data available)
+[2026-10-27 19:28:10.506565 +0000] I [MSGID: 114018] [client.c:2242:client_rpc_notify] 0-gv0-client-2: disconnected from client, process will keep trying to connect glusterd until brick's port is available [{conn-name=gv0-client-2}] 
+[2026-10-27 19:28:13.513688 +0000] E [MSGID: 114058] [client-handshake.c:946:client_query_portmap_cbk] 0-gv0-client-2: failed to get the port number for remote subvolume. Please run gluster volume status on server to see if brick process is running [] 
+[2026-10-27 19:28:13.718892 +0000] I [MSGID: 0] [options.c:1384:xlator_option_reconf_time] 0-gv0-client-2: option ping-timeout using set value 42 
+[2026-10-27 19:28:13.725764 +0000] I [MSGID: 114020] [client.c:2344:notify] 2-gv0-client-2: parent translators are ready, attempting connect on transport [] 
+[2026-10-27 19:28:13.730712 +0000] I [rpc-clnt.c:1899:rpc_clnt_reconfig] 2-gv0-client-2: changing port to 50497 (from 0)
+[2026-10-27 19:28:13.730764 +0000] I [socket.c:835:__socket_shutdown] 2-gv0-client-2: intentional socket shutdown(12)
+[2026-10-27 19:28:13.733575 +0000] I [MSGID: 114057] [client-handshake.c:871:select_server_supported_programs] 2-gv0-client-2: Using Program [{Program-name=GlusterFS 4.x v1}, {Num=1298437}, {Version=400}] 
+[2026-10-27 19:28:13.734714 +0000] I [MSGID: 114046] [client-handshake.c:621:client_setvolume_cbk] 2-gv0-client-2: Connected, attached to remote volume [{conn-name=gv0-client-2}, {remote_subvol=/data/glusterfs/brick2/vol}] 
+[2026-10-27 19:28:14.066846 +0000] I [fuse-bridge.c:5927:fuse_graph_sync] 0-fuse: switched to graph 2
+[2026-10-27 19:28:14.067570 +0000] I [MSGID: 114021] [client.c:2351:notify] 0-gv0-client-0: current graph is no longer active, destroying rpc_client [] 
+[2026-10-27 19:28:14.067603 +0000] I [MSGID: 114021] [client.c:2351:notify] 0-gv0-client-1: current graph is no longer active, destroying rpc_client [] 
+[2026-10-27 19:28:14.067615 +0000] I [MSGID: 114021] [client.c:2351:notify] 0-gv0-client-2: current graph is no longer active, destroying rpc_client [] 
+[2026-10-27 19:28:13.513821 +0000] I [MSGID: 114018] [client.c:2242:client_rpc_notify] 0-gv0-client-2: disconnected from client, process will keep trying to connect glusterd until brick's port is available [{conn-name=gv0-client-2}] 
+
+## gluster1: self-heal daemon log, /var/log/glusterfs/glustershd.log
+# pattern: 'client-2|sweep|crawl|Completed|selfheal'
+# Healed the root directory's metadata, then nothing further.
+
+[2026-10-27 19:28:10.500767 +0000] W [socket.c:751:__socket_rwv] 0-gv0-client-2: readv on 192.168.0.163:59702 failed (No data available)
+[2026-10-27 19:28:10.500838 +0000] I [MSGID: 114018] [client.c:2242:client_rpc_notify] 0-gv0-client-2: disconnected from client, process will keep trying to connect glusterd until brick's port is available [{conn-name=gv0-client-2}] 
+[2026-10-27 19:28:13.719785 +0000] I [MSGID: 114020] [client.c:2344:notify] 0-gv0-client-2: parent translators are ready, attempting connect on transport [] 
+[2026-10-27 19:28:13.724962 +0000] I [rpc-clnt.c:1899:rpc_clnt_reconfig] 0-gv0-client-2: changing port to 50497 (from 0)
+[2026-10-27 19:28:13.725023 +0000] I [socket.c:835:__socket_shutdown] 0-gv0-client-2: intentional socket shutdown(15)
+[2026-10-27 19:28:13.727781 +0000] I [MSGID: 114057] [client-handshake.c:871:select_server_supported_programs] 0-gv0-client-2: Using Program [{Program-name=GlusterFS 4.x v1}, {Num=1298437}, {Version=400}] 
+[2026-10-27 19:28:13.728690 +0000] I [MSGID: 114046] [client-handshake.c:621:client_setvolume_cbk] 0-gv0-client-2: Connected, attached to remote volume [{conn-name=gv0-client-2}, {remote_subvol=/data/glusterfs/brick2/vol}] 
+[2026-10-27 19:28:13.732473 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:baefb8ec-7203-4b90-9540-92e874c90134>}, {gfid=baefb8ec-7203-4b90-9540-92e874c90134}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.736313 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:a4808c94-327a-43c2-8e2e-68125e105380>}, {gfid=a4808c94-327a-43c2-8e2e-68125e105380}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.739525 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:8dc8299d-ec15-4cd6-a491-3bbb21e78eb6>}, {gfid=8dc8299d-ec15-4cd6-a491-3bbb21e78eb6}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.746110 +0000] I [MSGID: 108026] [afr-self-heal-metadata.c:50:__afr_selfheal_metadata_do] 0-gv0-replicate-0: performing metadata selfheal on 00000000-0000-0000-0000-000000000001 
+[2026-10-27 19:28:13.750865 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed metadata selfheal on 00000000-0000-0000-0000-000000000001. sources=[0] 1  sinks=2  
+[2026-10-27 19:28:13.752767 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:6193db16-71c5-493e-8558-ef60a166b87e>}, {gfid=6193db16-71c5-493e-8558-ef60a166b87e}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.756593 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:faab6469-9fe6-40aa-9e52-38f06d8431ce>}, {gfid=faab6469-9fe6-40aa-9e52-38f06d8431ce}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.760315 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:4f0cc963-3572-4d80-ad22-b5b676525641>}, {gfid=4f0cc963-3572-4d80-ad22-b5b676525641}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.763335 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:2470de19-964b-4823-bd11-0dc9d97499ee>}, {gfid=2470de19-964b-4823-bd11-0dc9d97499ee}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.768154 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:a4808c94-327a-43c2-8e2e-68125e105380>}, {gfid=a4808c94-327a-43c2-8e2e-68125e105380}, {errno=2}, {error=No such file or directory}] 
+
+## gluster3: self-heal daemon log, /var/log/glusterfs/glustershd.log
+# pattern: 'client-2|sweep|crawl|Completed|selfheal'
+# The first port lookup fails because the new brick is not registered yet; it connects 3 seconds later.
+
+[2026-10-27 19:28:12.629151 +0000] I [MSGID: 114020] [client.c:2344:notify] 0-gv0-client-2: parent translators are ready, attempting connect on transport [] 
+[2026-10-27 19:28:12.632874 +0000] E [MSGID: 114058] [client-handshake.c:946:client_query_portmap_cbk] 0-gv0-client-2: failed to get the port number for remote subvolume. Please run gluster volume status on server to see if brick process is running [] 
+[2026-10-27 19:28:12.632926 +0000] I [socket.c:835:__socket_shutdown] 0-gv0-client-2: intentional socket shutdown(14)
+[2026-10-27 19:28:12.632945 +0000] I [MSGID: 114018] [client.c:2242:client_rpc_notify] 0-gv0-client-2: disconnected from client, process will keep trying to connect glusterd until brick's port is available [{conn-name=gv0-client-2}] 
+[2026-10-27 19:28:15.635477 +0000] I [rpc-clnt.c:1899:rpc_clnt_reconfig] 0-gv0-client-2: changing port to 50497 (from 0)
+[2026-10-27 19:28:15.636590 +0000] I [MSGID: 114057] [client-handshake.c:871:select_server_supported_programs] 0-gv0-client-2: Using Program [{Program-name=GlusterFS 4.x v1}, {Num=1298437}, {Version=400}] 
+[2026-10-27 19:28:15.636956 +0000] I [MSGID: 114046] [client-handshake.c:621:client_setvolume_cbk] 0-gv0-client-2: Connected, attached to remote volume [{conn-name=gv0-client-2}, {remote_subvol=/data/glusterfs/brick2/vol}] 
+
+## gluster2: self-heal daemon log, /var/log/glusterfs/glustershd.log
+# pattern: 'client-2|sweep|crawl|Completed|selfheal'
+# This daemon performed the heal. Its extract is 9291 lines: for each healed item a
+# "performing" and a "Completed" line per heal type, plus one lookup warning
+# ("remote operation failed ... No such file or directory") from the empty new brick.
+# Shown: the first 50 lines, every directory (entry) heal, and the last 10 lines.
+# Counts over the full extract:
+#   Completed data selfheal          1843
+#   Completed metadata selfheal      1856
+#   Completed full entry selfheal    14
+#   lookup warnings (No such file)   1857
+
+### first 50 lines
+[2026-10-27 19:28:10.505634 +0000] W [socket.c:751:__socket_rwv] 0-gv0-client-2: readv on 192.168.0.163:59702 failed (No data available)
+[2026-10-27 19:28:10.505715 +0000] I [MSGID: 114018] [client.c:2242:client_rpc_notify] 0-gv0-client-2: disconnected from client, process will keep trying to connect glusterd until brick's port is available [{conn-name=gv0-client-2}] 
+[2026-10-27 19:28:13.723596 +0000] I [MSGID: 114020] [client.c:2344:notify] 0-gv0-client-2: parent translators are ready, attempting connect on transport [] 
+[2026-10-27 19:28:13.729052 +0000] I [rpc-clnt.c:1899:rpc_clnt_reconfig] 0-gv0-client-2: changing port to 50497 (from 0)
+[2026-10-27 19:28:13.729083 +0000] I [socket.c:835:__socket_shutdown] 0-gv0-client-2: intentional socket shutdown(14)
+[2026-10-27 19:28:13.731744 +0000] I [MSGID: 114057] [client-handshake.c:871:select_server_supported_programs] 0-gv0-client-2: Using Program [{Program-name=GlusterFS 4.x v1}, {Num=1298437}, {Version=400}] 
+[2026-10-27 19:28:13.733523 +0000] I [MSGID: 114046] [client-handshake.c:621:client_setvolume_cbk] 0-gv0-client-2: Connected, attached to remote volume [{conn-name=gv0-client-2}, {remote_subvol=/data/glusterfs/brick2/vol}] 
+[2026-10-27 19:28:13.737436 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:baefb8ec-7203-4b90-9540-92e874c90134>}, {gfid=baefb8ec-7203-4b90-9540-92e874c90134}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.741438 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:a4808c94-327a-43c2-8e2e-68125e105380>}, {gfid=a4808c94-327a-43c2-8e2e-68125e105380}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.743802 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:8dc8299d-ec15-4cd6-a491-3bbb21e78eb6>}, {gfid=8dc8299d-ec15-4cd6-a491-3bbb21e78eb6}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.751414 +0000] I [MSGID: 108026] [afr-self-heal-entry.c:1078:afr_selfheal_entry_do] 0-gv0-replicate-0: performing full entry selfheal on 00000000-0000-0000-0000-000000000001 
+[2026-10-27 19:28:13.754898 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:f6fca88e-1b0e-43e9-9bd4-6117cfa1101a>}, {gfid=f6fca88e-1b0e-43e9-9bd4-6117cfa1101a}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.759340 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:4789dc71-41eb-41f0-a6c5-9bdec4ebf281>}, {gfid=4789dc71-41eb-41f0-a6c5-9bdec4ebf281}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.763298 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:a73a43f8-b790-46e8-995b-8414825f4209>}, {gfid=a73a43f8-b790-46e8-995b-8414825f4209}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.767589 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:438c85a0-c7ba-46bc-b123-b6fc35f001c1>}, {gfid=438c85a0-c7ba-46bc-b123-b6fc35f001c1}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.770989 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:2b3eb4cd-76bd-4de3-ae1b-146d07f25f1d>}, {gfid=2b3eb4cd-76bd-4de3-ae1b-146d07f25f1d}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.774630 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:382da0a6-1a40-4182-b3dc-ee7c3b6ce4f8>}, {gfid=382da0a6-1a40-4182-b3dc-ee7c3b6ce4f8}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.777879 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:b2c37526-a5d1-4eaa-b630-e9610b111160>}, {gfid=b2c37526-a5d1-4eaa-b630-e9610b111160}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.781222 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:6b921e54-ceb1-45a1-8097-63e6adb382c4>}, {gfid=6b921e54-ceb1-45a1-8097-63e6adb382c4}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.784638 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:d41582e5-1264-4172-9ad8-e6036805911a>}, {gfid=d41582e5-1264-4172-9ad8-e6036805911a}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.788428 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:2174558e-911e-461d-a336-a5c5d5af03fc>}, {gfid=2174558e-911e-461d-a336-a5c5d5af03fc}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.791517 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:8e963c6f-1d41-4994-9cb5-0f39474975d6>}, {gfid=8e963c6f-1d41-4994-9cb5-0f39474975d6}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.795168 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:3d3167cb-03af-4119-a811-67e2953901da>}, {gfid=3d3167cb-03af-4119-a811-67e2953901da}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.798243 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:32eafcd9-4413-4d02-9aec-bf22fe2c3697>}, {gfid=32eafcd9-4413-4d02-9aec-bf22fe2c3697}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.801233 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:fbf7d301-c571-4bf9-b473-1532151c41a0>}, {gfid=fbf7d301-c571-4bf9-b473-1532151c41a0}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.803921 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:f17091bb-c2e6-4a63-b197-0ed9c4b24117>}, {gfid=f17091bb-c2e6-4a63-b197-0ed9c4b24117}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.806880 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:1ff84997-2b8e-4dcc-8a8a-be2c989e2f10>}, {gfid=1ff84997-2b8e-4dcc-8a8a-be2c989e2f10}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.809758 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:7f750f94-18cb-40fd-bbd0-740685b0733e>}, {gfid=7f750f94-18cb-40fd-bbd0-740685b0733e}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.811857 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:85523bbf-ec37-4539-aefc-7fb40b8b00d4>}, {gfid=85523bbf-ec37-4539-aefc-7fb40b8b00d4}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.813999 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:4313e220-f2e6-4c4c-8da8-c8bd202ebbe2>}, {gfid=4313e220-f2e6-4c4c-8da8-c8bd202ebbe2}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.816041 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:62ff13de-2d04-4dff-9562-09ec99d965cc>}, {gfid=62ff13de-2d04-4dff-9562-09ec99d965cc}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.817906 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:296bf3a1-535f-4e43-a2ba-bb4ed4a27fd0>}, {gfid=296bf3a1-535f-4e43-a2ba-bb4ed4a27fd0}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.819843 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:cddc5df2-1cd0-45f9-b01b-1155df82c3e5>}, {gfid=cddc5df2-1cd0-45f9-b01b-1155df82c3e5}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.822075 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:6fff6801-301f-4eeb-9ba9-51b146d6f0d5>}, {gfid=6fff6801-301f-4eeb-9ba9-51b146d6f0d5}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.824431 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:fd613b3f-8a9e-45c3-8afa-863c07bd2bd0>}, {gfid=fd613b3f-8a9e-45c3-8afa-863c07bd2bd0}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.826705 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:ae39fc6c-e397-46cb-9ab6-78c5dc76a930>}, {gfid=ae39fc6c-e397-46cb-9ab6-78c5dc76a930}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.828759 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:af25ed09-cf15-4e77-a6cf-fc33af735ed5>}, {gfid=af25ed09-cf15-4e77-a6cf-fc33af735ed5}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.831660 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:61f67407-359f-4192-b876-3815e8464c05>}, {gfid=61f67407-359f-4192-b876-3815e8464c05}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.834407 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:bd271c92-35ba-4ec2-b979-0c784a00cdd6>}, {gfid=bd271c92-35ba-4ec2-b979-0c784a00cdd6}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.837481 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:6a2b926f-a6de-488e-b353-0be9723a6cee>}, {gfid=6a2b926f-a6de-488e-b353-0be9723a6cee}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.840249 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:367fab8c-3258-446c-9039-47c7819b7846>}, {gfid=367fab8c-3258-446c-9039-47c7819b7846}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.843078 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:b26cd146-2ede-434c-be00-3332da4ec3a3>}, {gfid=b26cd146-2ede-434c-be00-3332da4ec3a3}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.846146 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:618acb14-1580-4388-a123-0f5b4f394eaa>}, {gfid=618acb14-1580-4388-a123-0f5b4f394eaa}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.848871 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:a4808c94-327a-43c2-8e2e-68125e105380>}, {gfid=a4808c94-327a-43c2-8e2e-68125e105380}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.950933 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:1931:client4_0_setattr_cbk] 0-gv0-client-2: remote operation failed. [{errno=22}, {error=Invalid argument}] 
+[2026-10-27 19:28:13.952182 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed full entry selfheal on 00000000-0000-0000-0000-000000000001. sources= sinks=0 1 2  
+[2026-10-27 19:28:13.953134 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:6193db16-71c5-493e-8558-ef60a166b87e>}, {gfid=6193db16-71c5-493e-8558-ef60a166b87e}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.955425 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:faab6469-9fe6-40aa-9e52-38f06d8431ce>}, {gfid=faab6469-9fe6-40aa-9e52-38f06d8431ce}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.957602 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:4f0cc963-3572-4d80-ad22-b5b676525641>}, {gfid=4f0cc963-3572-4d80-ad22-b5b676525641}, {errno=2}, {error=No such file or directory}] 
+[2026-10-27 19:28:13.959798 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-2: remote operation failed. [{path=<gfid:2470de19-964b-4823-bd11-0dc9d97499ee>}, {gfid=2470de19-964b-4823-bd11-0dc9d97499ee}, {errno=2}, {error=No such file or directory}] 
+
+### directory (entry) heals after those
+[2026-10-27 19:28:13.968984 +0000] I [MSGID: 108026] [afr-self-heal-entry.c:1078:afr_selfheal_entry_do] 0-gv0-replicate-0: performing full entry selfheal on a4808c94-327a-43c2-8e2e-68125e105380 
+[2026-10-27 19:28:14.149710 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed full entry selfheal on a4808c94-327a-43c2-8e2e-68125e105380. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:15.953878 +0000] I [MSGID: 108026] [afr-self-heal-entry.c:1078:afr_selfheal_entry_do] 0-gv0-replicate-0: performing full entry selfheal on 6fff6801-301f-4eeb-9ba9-51b146d6f0d5 
+[2026-10-27 19:28:16.868273 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed full entry selfheal on 6fff6801-301f-4eeb-9ba9-51b146d6f0d5. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:16.875509 +0000] I [MSGID: 108026] [afr-self-heal-entry.c:1078:afr_selfheal_entry_do] 0-gv0-replicate-0: performing full entry selfheal on fd613b3f-8a9e-45c3-8afa-863c07bd2bd0 
+[2026-10-27 19:28:18.118918 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed full entry selfheal on fd613b3f-8a9e-45c3-8afa-863c07bd2bd0. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:18.125654 +0000] I [MSGID: 108026] [afr-self-heal-entry.c:1078:afr_selfheal_entry_do] 0-gv0-replicate-0: performing full entry selfheal on ae39fc6c-e397-46cb-9ab6-78c5dc76a930 
+[2026-10-27 19:28:19.354574 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed full entry selfheal on ae39fc6c-e397-46cb-9ab6-78c5dc76a930. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:19.361625 +0000] I [MSGID: 108026] [afr-self-heal-entry.c:1078:afr_selfheal_entry_do] 0-gv0-replicate-0: performing full entry selfheal on af25ed09-cf15-4e77-a6cf-fc33af735ed5 
+[2026-10-27 19:28:19.520282 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed full entry selfheal on af25ed09-cf15-4e77-a6cf-fc33af735ed5. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:19.538790 +0000] I [MSGID: 108026] [afr-self-heal-entry.c:1078:afr_selfheal_entry_do] 0-gv0-replicate-0: performing full entry selfheal on bd271c92-35ba-4ec2-b979-0c784a00cdd6 
+[2026-10-27 19:28:19.545800 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed full entry selfheal on bd271c92-35ba-4ec2-b979-0c784a00cdd6. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:19.552019 +0000] I [MSGID: 108026] [afr-self-heal-entry.c:1078:afr_selfheal_entry_do] 0-gv0-replicate-0: performing full entry selfheal on 6a2b926f-a6de-488e-b353-0be9723a6cee 
+[2026-10-27 19:28:19.834448 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed full entry selfheal on 6a2b926f-a6de-488e-b353-0be9723a6cee. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:19.840772 +0000] I [MSGID: 108026] [afr-self-heal-entry.c:1078:afr_selfheal_entry_do] 0-gv0-replicate-0: performing full entry selfheal on 367fab8c-3258-446c-9039-47c7819b7846 
+[2026-10-27 19:28:20.275662 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed full entry selfheal on 367fab8c-3258-446c-9039-47c7819b7846. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:20.282503 +0000] I [MSGID: 108026] [afr-self-heal-entry.c:1078:afr_selfheal_entry_do] 0-gv0-replicate-0: performing full entry selfheal on b26cd146-2ede-434c-be00-3332da4ec3a3 
+[2026-10-27 19:28:20.882843 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed full entry selfheal on b26cd146-2ede-434c-be00-3332da4ec3a3. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:20.890464 +0000] I [MSGID: 108026] [afr-self-heal-entry.c:1078:afr_selfheal_entry_do] 0-gv0-replicate-0: performing full entry selfheal on 618acb14-1580-4388-a123-0f5b4f394eaa 
+[2026-10-27 19:28:20.906577 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed full entry selfheal on 618acb14-1580-4388-a123-0f5b4f394eaa. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:44.549183 +0000] I [MSGID: 108026] [afr-self-heal-entry.c:1078:afr_selfheal_entry_do] 0-gv0-replicate-0: performing full entry selfheal on e7c14629-ac64-4214-a7a3-5d00e5ea2659 
+[2026-10-27 19:28:44.703703 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed full entry selfheal on e7c14629-ac64-4214-a7a3-5d00e5ea2659. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:44.711100 +0000] I [MSGID: 108026] [afr-self-heal-entry.c:1078:afr_selfheal_entry_do] 0-gv0-replicate-0: performing full entry selfheal on df8aafe7-8c13-401b-bbe8-8c64033b2bb9 
+[2026-10-27 19:28:44.869501 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed full entry selfheal on df8aafe7-8c13-401b-bbe8-8c64033b2bb9. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:44.876282 +0000] I [MSGID: 108026] [afr-self-heal-entry.c:1078:afr_selfheal_entry_do] 0-gv0-replicate-0: performing full entry selfheal on fe2ae9b3-4fc4-4021-be01-c94ad301d8da 
+[2026-10-27 19:28:45.031322 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed full entry selfheal on fe2ae9b3-4fc4-4021-be01-c94ad301d8da. sources=0 [1]  sinks=2  
+
+### last 10 lines
+[2026-10-27 19:28:50.126812 +0000] I [MSGID: 108026] [afr-self-heal-metadata.c:50:__afr_selfheal_metadata_do] 0-gv0-replicate-0: performing metadata selfheal on 2490cb28-6cbb-4ac6-aa3a-1a167777e908 
+[2026-10-27 19:28:50.129153 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed metadata selfheal on 2490cb28-6cbb-4ac6-aa3a-1a167777e908. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:50.131264 +0000] I [MSGID: 108026] [afr-self-heal-data.c:346:afr_selfheal_data_do] 0-gv0-replicate-0: performing data selfheal on 343653d3-5afc-4f16-80e4-e46b948a2825 
+[2026-10-27 19:28:50.145171 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed data selfheal on 343653d3-5afc-4f16-80e4-e46b948a2825. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:50.146072 +0000] I [MSGID: 108026] [afr-self-heal-metadata.c:50:__afr_selfheal_metadata_do] 0-gv0-replicate-0: performing metadata selfheal on 343653d3-5afc-4f16-80e4-e46b948a2825 
+[2026-10-27 19:28:50.148515 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed metadata selfheal on 343653d3-5afc-4f16-80e4-e46b948a2825. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:50.150619 +0000] I [MSGID: 108026] [afr-self-heal-data.c:346:afr_selfheal_data_do] 0-gv0-replicate-0: performing data selfheal on f628314e-d405-4db1-bdbe-e221d70a103b 
+[2026-10-27 19:28:50.167961 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed data selfheal on f628314e-d405-4db1-bdbe-e221d70a103b. sources=0 [1]  sinks=2  
+[2026-10-27 19:28:50.168890 +0000] I [MSGID: 108026] [afr-self-heal-metadata.c:50:__afr_selfheal_metadata_do] 0-gv0-replicate-0: performing metadata selfheal on f628314e-d405-4db1-bdbe-e221d70a103b 
+[2026-10-27 19:28:50.171482 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-0: Completed metadata selfheal on f628314e-d405-4db1-bdbe-e221d70a103b. sources=0 [1]  sinks=2  

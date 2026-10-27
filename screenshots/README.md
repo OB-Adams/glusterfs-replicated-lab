@@ -10,6 +10,7 @@ This folder holds screenshots of real terminal output from the lab. Each one is 
 - Check each image for private addresses, tokens or personal information before committing.
 - Use the exact file names below. The main README refers to them.
 - Where a command sequence is long or its output scrolls, the commands may be re-run afterwards in a clean terminal to capture a readable image. Screenshots 09 and 10 were captured that way, so their timestamps and counters differ from the session logs in `../docs/evidence`, which remain the record of the drill itself.
+- Screenshots 13 to 16 come from a repeat of drill 6 run with the same commands to capture clean images, after the recorded run had been reversed. Their timestamps differ from the drill 6 session logs, which remain the record of the drill.
 
 ## The set
 
@@ -29,8 +30,12 @@ This folder holds screenshots of real terminal output from the lab. Each one is 
 | `10-drill5-heal-progress.png` | gluster3 | `sudo gluster volume heal gv0 full`, then `sudo gluster volume heal gv0 info summary` twice | Entries pending on the two source bricks and none on the rebuilt one, then zero everywhere |
 | `11-drill5-digests-match.png` | each server | `./scripts/compare-bricks.sh` on `drill5` and `drill5-during` | 151 files and 100 files, each with the same digest on all three servers |
 | `12-drill5-reset-brick-logs.png` | gluster3 | `grep -iE "reset-brick\|heal" /var/log/glusterfs/cmd_history.log \| tail -3` and `sudo grep -i "full sweep" /var/log/glusterfs/glustershd.log \| tail -2` | The `reset-brick` and `heal full` commands with their results, and the full sweep on the rebuilt brick |
+| `13-drill6-new-brick-ready.png` | gluster3 | `findmnt /data/glusterfs/brick2`, `ls -laZ /data/glusterfs/brick2/vol`, `sudo getfattr -d -m . -e hex /data/glusterfs/brick2/vol`, `sudo lvs vg_gluster2` | The new brick before the commit: XFS on the second disk, empty `vol` directory with the `glusterd_brick_t` label and no Gluster attributes |
+| `14-drill6-replace-brick-commit.png` | gluster3 | `sudo gluster volume replace-brick gv0 gluster3:/data/glusterfs/brick1/vol gluster3:/data/glusterfs/brick2/vol commit force`, `sudo gluster volume info gv0`, `sudo gluster volume status gv0` twice, `sudo grep replace-brick /var/log/glusterfs/cmd_history.log \| tail -1` | The commit succeeding, `Brick3` on the new path, the brick going from offline to online, and the commit time |
+| `15-drill6-heal-from-shd-log.png` | the source server whose daemon healed | `sudo grep -E "Connected, attached.*client-2\|full entry selfheal on 00000000-0000-0000-0000-000000000001" /var/log/glusterfs/glustershd.log \| tail -3` and `sudo grep "Completed data selfheal" /var/log/glusterfs/glustershd.log \| tail -1` | The new brick attaching, the root heal starting immediately after, and the last file healed |
+| `16-drill6-digests-match.png` | each server | `./scripts/compare-bricks.sh` on `drill5`, `drill5-during`, `drill6` and `drill6-during` | 151, 100, 151 and 400 files, each with the same digest on all three servers |
 
-The procedures are in [../docs/failure-drills.md](../docs/failure-drills.md) for drills 1 to 4 and [../docs/brick-replacement.md](../docs/brick-replacement.md) for drill 5.
+The procedures are in [../docs/failure-drills.md](../docs/failure-drills.md) for drills 1 to 4 and [../docs/brick-replacement.md](../docs/brick-replacement.md) for drills 5 and 6.
 
 ## Adding another screenshot
 

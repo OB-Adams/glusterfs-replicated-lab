@@ -1,6 +1,6 @@
 # glusterfs-replicated-lab
 
-A hands-on GlusterFS lab: a three-node replica 3 volume built from scratch on Linux VMs, followed by documented failure drills (graceful node loss, hard failure, quorum loss and split-brain), with captured evidence and operational notes.
+A hands-on GlusterFS lab: a three-node replica 3 volume built from scratch on Linux VMs, followed by documented failure drills (graceful node loss, hard failure, quorum loss and split-brain) and brick replacement drills, with captured evidence and operational notes.
 
 This is phase 1 of a storage study. Phase 2 will rebuild the same VMs as a CephFS cluster and compare the two systems under the same tests.
 
@@ -12,7 +12,8 @@ This is phase 1 of a storage study. Phase 2 will rebuild the same VMs as a CephF
 | Raw evidence (command output and log excerpts) | Added in [docs/evidence](docs/evidence) |
 | Screenshots | Added in [screenshots/](screenshots) (see [Screenshots and evidence](#screenshots-and-evidence)) |
 | Milestone 2a: brick rebuild with `reset-brick` | Complete |
-| Milestone 2b and 2c: `replace-brick` to a new path, expansion and rebalance | Planned |
+| Milestone 2b: `replace-brick` to a new disk | Complete |
+| Milestone 2c: expansion to 2 x 3 and rebalance | Planned |
 | TLS, access control and monitoring | Planned |
 | `fio` baseline | Planned |
 | Ansible automation of the build | Planned |
@@ -38,6 +39,7 @@ Upstream GlusterFS development has slowed and Red Hat's commercial Gluster Stora
 - FUSE client on a separate VM with backup volfile servers.
 - Four failure drills with real output: graceful node loss and self-heal, hard failure and `network.ping-timeout`, quorum loss, split-brain creation and resolution.
 - A brick rebuild drill: the brick on one server destroyed, rebuilt empty at the same path, re-admitted with `reset-brick`, and repaired by the self-heal daemon.
+- A brick move drill: the brick on one server moved to a new disk with `replace-brick` while a client keeps writing, then filled by the self-heal daemon.
 - Helper scripts for health checks, latency-measuring writers and brick comparison.
 
 ## Architecture
@@ -105,7 +107,12 @@ glusterfs-replicated-lab/
 │       ├── drill5-logs.txt
 │       ├── drill5-session-gluster1.txt
 │       ├── drill5-session-gluster2.txt
-│       └── drill5-session-gluster3.txt
+│       ├── drill5-session-gluster3.txt
+│       ├── drill6-logs.txt
+│       ├── drill6-session-gluster1.txt
+│       ├── drill6-session-gluster2.txt
+│       ├── drill6-session-gluster3.txt
+│       └── drill6-session-gluster4.txt
 ├── scripts/
 │   ├── check-cluster.sh
 │   ├── compare-bricks.sh
@@ -125,14 +132,18 @@ glusterfs-replicated-lab/
     ├── 09-drill5-brick-rebuilt-empty.png
     ├── 10-drill5-heal-progress.png
     ├── 11-drill5-digests-match.png
-    └── 12-drill5-reset-brick-logs.png
+    ├── 12-drill5-reset-brick-logs.png
+    ├── 13-drill6-new-brick-ready.png
+    ├── 14-drill6-replace-brick-commit.png
+    ├── 15-drill6-heal-from-shd-log.png
+    └── 16-drill6-digests-match.png
 ```
 
 ## Prerequisites
 
 - A hypervisor (this lab used UTM on an Apple Silicon Mac with virtualized aarch64 guests).
 - Four Linux VMs: three storage servers and one client. This lab used 4 GB RAM each.
-- One extra virtual disk on each server for the brick.
+- One extra virtual disk on each server for the brick, and a second one from milestone 2b onwards.
 - Hostnames resolvable on every VM (this lab used `/etc/hosts`) and working time synchronisation (chrony).
 - Outbound internet access on the VMs to install packages.
 
@@ -161,6 +172,8 @@ The behaviour recorded in the drills applies to this OS release and Gluster vers
 | Volume name | `gv0` |
 | Client mount point | `/mnt/gv0` |
 | Physical volume | `/dev/vdb1` (a partition on the extra disk) |
+| Second disk, from milestone 2b | `/dev/vdc1`, volume group `vg_gluster2`, thin pool `thinpool`, thin LV `brick2`, mounted at `/data/glusterfs/brick2` |
+| Brick on `gluster3` after milestone 2b | `/data/glusterfs/brick2/vol` (the other two servers still use `brick1`) |
 
 Disk and pool sizes are not fixed by this lab. Size them to your disks, and keep the thin LV's virtual size below the pool size so the pool cannot be overcommitted by accident.
 
@@ -245,7 +258,7 @@ sudo gluster peer detach gluster3
 
 Do not reuse a brick directory after deleting a volume: it keeps volume identity attributes and Gluster will refuse to reuse it. Recreate the filesystem instead (`mkfs.xfs -f -i size=512`) or remove the logical volumes entirely.
 
-Recovery procedures for node failure, hard failure, quorum loss and split-brain are documented as drills in [docs/failure-drills.md](docs/failure-drills.md). Rebuilding a destroyed brick is in [docs/brick-replacement.md](docs/brick-replacement.md).
+Recovery procedures for node failure, hard failure, quorum loss and split-brain are documented as drills in [docs/failure-drills.md](docs/failure-drills.md). Rebuilding a destroyed brick and moving a brick to a new disk are in [docs/brick-replacement.md](docs/brick-replacement.md).
 
 ## Screenshots and evidence
 
@@ -319,24 +332,40 @@ Raw command output and log excerpts from the drills are in [docs/evidence](docs/
 
 *Gluster's own logs on `gluster3`: the `reset-brick` start and commit and the `heal full` command, and the full sweep on the rebuilt brick.*
 
+### Drill 6: brick moved to a new disk ([details](docs/brick-replacement.md#2b-move-to-a-new-disk-with-replace-brick))
+
+![The new brick before replace-brick](screenshots/13-drill6-new-brick-ready.png)
+
+*The new brick on `gluster3`'s second disk: XFS on `vg_gluster2/brick2` mounted at `/data/glusterfs/brick2`, and an empty `vol` directory with the `glusterd_brick_t` label and no Gluster attributes.*
+
+![replace-brick commit and the new brick path](screenshots/14-drill6-replace-brick-commit.png)
+
+*`replace-brick ... commit force` succeeding, `Brick3` now on `/data/glusterfs/brick2/vol`, and the new brick going from offline to online within seconds.*
+
+![Self-heal daemon log after replace-brick](screenshots/15-drill6-heal-from-shd-log.png)
+
+*The self-heal daemon log on a source server: the new brick attaching, the heal of the root directory starting immediately, and the last file healed, with no heal command issued.*
+
+![Digests compared across the three servers](screenshots/16-drill6-digests-match.png)
+
+*All four test directories compared on `gluster1`, `gluster2` and `gluster3` after the move, with the same counts and digests on every server.*
+
 ## Known limitations
 
 - Everything runs on one physical machine with shared storage and virtual networking. Latency and throughput numbers are only meaningful relative to each other, not as absolute figures.
 - Each timing measurement in the drills is a single run. They show the effect, not a statistical result.
 - In drill 2, the observed stalls were longer than the configured `network.ping-timeout`. The cause is not established.
 - In drill 3, the documentation describes loss of client quorum as making the replica set read-only. On the tested version the mount became unusable for reads as well. The exact log lines are recorded and the version-specific behaviour has not been investigated further.
-- The post-heal verification output of drill 1 (file counts and checksums across bricks) was not archived.
 - No TLS, no access restrictions, no monitoring, no automation yet.
 - Only one OS and one Gluster version were tested.
 
 ## Future improvements
 
-1. Replace a brick at a different path or host with `replace-brick`.
-2. Add bricks, convert to distributed-replicated, rebalance, and inspect the hash layout.
-3. TLS, `auth.allow`, and Prometheus metrics with alerts on heal backlog and brick state.
-4. `fio` baseline with fixed profiles, reused unchanged in phase 2.
-5. Ansible role that rebuilds the whole lab idempotently.
-6. Phase 2: CephFS on the same VMs, the same failure drills, and a written comparison.
+1. Add bricks, convert to distributed-replicated, rebalance, and inspect the hash layout.
+2. TLS, `auth.allow`, and Prometheus metrics with alerts on heal backlog and brick state.
+3. `fio` baseline with fixed profiles, reused unchanged in phase 2.
+4. Ansible role that rebuilds the whole lab idempotently.
+5. Phase 2: CephFS on the same VMs, the same failure drills, and a written comparison.
 
 ## References
 
@@ -350,4 +379,4 @@ Raw command output and log excerpts from the drills are in [docs/evidence](docs/
 
 ## TL;DR
 
-Three VMs form a replica 3 GlusterFS volume (`gv0`) on LVM thin + XFS bricks, mounted from a fourth VM with the FUSE client. Five drills were run and recorded: a graceful node loss heals by itself, a hard failure stalls clients until `network.ping-timeout` expires, losing two of three nodes makes the volume unusable on the tested version, a split-brain needs a deliberate human choice of source brick, and a destroyed brick rebuilt with `reset-brick` comes back byte-identical after a manual `heal full`. Evidence is in `docs/evidence`, procedures in `docs/`. Not done yet: TLS, monitoring, benchmarks, Ansible, and the CephFS comparison.
+Three VMs form a replica 3 GlusterFS volume (`gv0`) on LVM thin + XFS bricks, mounted from a fourth VM with the FUSE client. Six drills were run and recorded: a graceful node loss heals by itself, a hard failure stalls clients until `network.ping-timeout` expires, losing two of three nodes makes the volume unusable on the tested version, a split-brain needs a deliberate human choice of source brick, a destroyed brick rebuilt with `reset-brick` comes back byte-identical after a manual `heal full`, and a brick moved to a new disk with `replace-brick` heals by itself in about 36 seconds with no stall for a writing client. Evidence is in `docs/evidence`, procedures in `docs/`. Not done yet: TLS, monitoring, benchmarks, Ansible, and the CephFS comparison.

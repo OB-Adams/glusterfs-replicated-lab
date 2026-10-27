@@ -1,0 +1,277 @@
+# Drill 6: replace-brick of gluster3's brick to a new disk, session log from gluster1
+# Captured 2026-10-27, times UTC.
+# Command lines were printed by a logging helper that dropped shell quoting.
+# Quotes are restored on 1 of them so they read as the commands that ran.
+# Output is unchanged.
+# gluster1 ran the baseline checks, the attribute and volfile checks after the commit, the heal polls and the closing health check.
+#
+
+$ bash /root/scripts/check-cluster.sh   # 19:25:04 UTC
+
+== peers ==
+UUID					Hostname 	State
+dafb797c-f2c6-4693-8fd0-b5877f34e70e	gluster2 	Connected 
+a4727315-5cf8-47cb-a1a0-2ffbbb3586ae	gluster3 	Connected 
+5b24c36c-3aa7-4ec2-9f94-67da01d45b4e	localhost	Connected 
+
+== volume status: gv0 ==
+Status of volume: gv0
+Gluster process                             TCP Port  RDMA Port  Online  Pid
+------------------------------------------------------------------------------
+Brick gluster1:/data/glusterfs/brick1/vol   60585     0          Y       2200 
+Brick gluster2:/data/glusterfs/brick1/vol   54996     0          Y       2197 
+Brick gluster3:/data/glusterfs/brick1/vol   59702     0          Y       2200 
+Self-heal Daemon on localhost               N/A       N/A        Y       2218 
+Self-heal Daemon on gluster2                N/A       N/A        Y       2214 
+Self-heal Daemon on gluster3                N/A       N/A        Y       2217 
+ 
+Task Status of Volume gv0
+------------------------------------------------------------------------------
+There are no active volume tasks
+ 
+
+== heal summary: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+
+== split-brain entries: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+
+== selected options: gv0 ==
+cluster.quorum-type                      auto                                   
+cluster.server-quorum-type               off                                    
+cluster.self-heal-daemon                 on (DEFAULT)                           
+network.ping-timeout                     42 (DEFAULT)                           
+
+$ sudo gluster volume info gv0   # 19:25:04 UTC
+ 
+Volume Name: gv0
+Type: Replicate
+Volume ID: 91f1a491-6fdf-4b32-b8c8-456973a6b649
+Status: Started
+Snapshot Count: 0
+Number of Bricks: 1 x 3 = 3
+Transport-type: tcp
+Bricks:
+Brick1: gluster1:/data/glusterfs/brick1/vol
+Brick2: gluster2:/data/glusterfs/brick1/vol
+Brick3: gluster3:/data/glusterfs/brick1/vol
+Options Reconfigured:
+performance.client-io-threads: off
+transport.address-family: inet
+storage.fips-mode-rchecksum: on
+cluster.granular-entry-heal: on
+cluster.quorum-type: auto
+
+$ sudo gluster volume get gv0 cluster.heal-timeout   # 19:25:04 UTC
+Option                                   Value                                  
+------                                   -----                                  
+cluster.heal-timeout                     600 (DEFAULT)                          
+
+$ sudo gluster volume get gv0 cluster.self-heal-daemon   # 19:25:04 UTC
+Option                                   Value                                  
+------                                   -----                                  
+cluster.self-heal-daemon                 on (DEFAULT)                           
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5   # 19:25:37 UTC
+host:   gluster1
+path:   /data/glusterfs/brick1/vol/drill5
+files:  151
+digest: 2dadf1bbe16a50641b96bb6fc95daed44e5cec26f5745f8c930e00f9500ce891
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5-during   # 19:25:37 UTC
+host:   gluster1
+path:   /data/glusterfs/brick1/vol/drill5-during
+files:  100
+digest: f7dbbb3a9d724273b71ec9f9c97feb0001180bcddc44761d5f2fa0749830e27b
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill6   # 19:25:37 UTC
+host:   gluster1
+path:   /data/glusterfs/brick1/vol/drill6
+files:  151
+digest: 824aa04651504c3f36f63a1a20eac602a38d322a9519666e9dac40c5a9be791c
+
+$ sudo getfattr -d -m trusted.afr -e hex /data/glusterfs/brick1/vol   # 19:28:53 UTC
+getfattr: Removing leading '/' from absolute path names
+# file: data/glusterfs/brick1/vol
+trusted.afr.dirty=0x000000000000000000000000
+trusted.afr.gv0-client-2=0x000000000000000000000000
+
+
+$ sudo grep -A6 'volume gv0-client-2' /var/lib/glusterd/vols/gv0/gv0.tcp-fuse.vol   # 19:28:53 UTC
+volume gv0-client-2
+    type protocol/client
+    option strict-locks off
+    option transport.socket.keepalive-count 9
+    option transport.socket.keepalive-interval 2
+    option transport.socket.keepalive-time 20
+    option transport.tcp-user-timeout 0
+
+--- 19:29:25 UTC
+Brick gluster1:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster2:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster3:/data/glusterfs/brick2/vol
+Total Number of entries: 0
+
+--- 19:29:55 UTC
+Brick gluster1:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster2:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster3:/data/glusterfs/brick2/vol
+Total Number of entries: 0
+
+--- 19:30:25 UTC
+Brick gluster1:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster2:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster3:/data/glusterfs/brick2/vol
+Total Number of entries: 0
+
+--- 19:30:55 UTC
+Brick gluster1:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster2:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster3:/data/glusterfs/brick2/vol
+Total Number of entries: 0
+
+--- 19:31:26 UTC
+Brick gluster1:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster2:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster3:/data/glusterfs/brick2/vol
+Total Number of entries: 0
+
+--- 19:31:56 UTC
+Brick gluster1:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster2:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster3:/data/glusterfs/brick2/vol
+Total Number of entries: 0
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5   # 19:32:00 UTC
+host:   gluster1
+path:   /data/glusterfs/brick1/vol/drill5
+files:  151
+digest: 2dadf1bbe16a50641b96bb6fc95daed44e5cec26f5745f8c930e00f9500ce891
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5-during   # 19:32:00 UTC
+host:   gluster1
+path:   /data/glusterfs/brick1/vol/drill5-during
+files:  100
+digest: f7dbbb3a9d724273b71ec9f9c97feb0001180bcddc44761d5f2fa0749830e27b
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill6   # 19:32:00 UTC
+host:   gluster1
+path:   /data/glusterfs/brick1/vol/drill6
+files:  151
+digest: 824aa04651504c3f36f63a1a20eac602a38d322a9519666e9dac40c5a9be791c
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill6-during   # 19:32:01 UTC
+host:   gluster1
+path:   /data/glusterfs/brick1/vol/drill6-during
+files:  400
+digest: 160a99f48f5e71b3a4aaf22e074779beb49bd1e686e563913623208ca8279533
+
+$ bash /root/scripts/check-cluster.sh   # 19:33:08 UTC
+
+== peers ==
+UUID					Hostname 	State
+dafb797c-f2c6-4693-8fd0-b5877f34e70e	gluster2 	Connected 
+a4727315-5cf8-47cb-a1a0-2ffbbb3586ae	gluster3 	Connected 
+5b24c36c-3aa7-4ec2-9f94-67da01d45b4e	localhost	Connected 
+
+== volume status: gv0 ==
+Status of volume: gv0
+Gluster process                             TCP Port  RDMA Port  Online  Pid
+------------------------------------------------------------------------------
+Brick gluster1:/data/glusterfs/brick1/vol   60585     0          Y       2200 
+Brick gluster2:/data/glusterfs/brick1/vol   54996     0          Y       2197 
+Brick gluster3:/data/glusterfs/brick2/vol   50497     0          Y       2679 
+Self-heal Daemon on localhost               N/A       N/A        Y       2599 
+Self-heal Daemon on gluster2                N/A       N/A        Y       2425 
+Self-heal Daemon on gluster3                N/A       N/A        Y       2690 
+ 
+Task Status of Volume gv0
+------------------------------------------------------------------------------
+There are no active volume tasks
+ 
+
+== heal summary: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+
+== split-brain entries: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+
+== selected options: gv0 ==
+cluster.quorum-type                      auto                                   
+cluster.server-quorum-type               off                                    
+cluster.self-heal-daemon                 on (DEFAULT)                           
+network.ping-timeout                     42 (DEFAULT)                           

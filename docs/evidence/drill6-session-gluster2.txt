@@ -1,0 +1,47 @@
+# Drill 6: replace-brick of gluster3's brick to a new disk, session log from gluster2
+# Captured 2026-10-27, times UTC.
+# Output as produced, unedited.
+# gluster2 is a source brick. It ran the digest comparisons before and after.
+#
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5   # 19:25:52 UTC
+host:   gluster2
+path:   /data/glusterfs/brick1/vol/drill5
+files:  151
+digest: 2dadf1bbe16a50641b96bb6fc95daed44e5cec26f5745f8c930e00f9500ce891
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5-during   # 19:25:52 UTC
+host:   gluster2
+path:   /data/glusterfs/brick1/vol/drill5-during
+files:  100
+digest: f7dbbb3a9d724273b71ec9f9c97feb0001180bcddc44761d5f2fa0749830e27b
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill6   # 19:25:52 UTC
+host:   gluster2
+path:   /data/glusterfs/brick1/vol/drill6
+files:  151
+digest: 824aa04651504c3f36f63a1a20eac602a38d322a9519666e9dac40c5a9be791c
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5   # 19:32:02 UTC
+host:   gluster2
+path:   /data/glusterfs/brick1/vol/drill5
+files:  151
+digest: 2dadf1bbe16a50641b96bb6fc95daed44e5cec26f5745f8c930e00f9500ce891
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5-during   # 19:32:02 UTC
+host:   gluster2
+path:   /data/glusterfs/brick1/vol/drill5-during
+files:  100
+digest: f7dbbb3a9d724273b71ec9f9c97feb0001180bcddc44761d5f2fa0749830e27b
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill6   # 19:32:02 UTC
+host:   gluster2
+path:   /data/glusterfs/brick1/vol/drill6
+files:  151
+digest: 824aa04651504c3f36f63a1a20eac602a38d322a9519666e9dac40c5a9be791c
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill6-during   # 19:32:02 UTC
+host:   gluster2
+path:   /data/glusterfs/brick1/vol/drill6-during
+files:  400
+digest: 160a99f48f5e71b3a4aaf22e074779beb49bd1e686e563913623208ca8279533

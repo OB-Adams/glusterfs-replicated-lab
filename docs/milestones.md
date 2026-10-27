@@ -31,15 +31,6 @@ Status values: Planned, In progress, Blocked, Complete. A milestone is marked Co
 | Split-brain created and resolved with CLI policies | Met, output archived |
 | Documentation matches what was done | Reviewed against the pasted outputs |
 
-**Not verified.**
-
-- Post-heal file counts and checksums for drill 1 were checked but the output was not archived.
-- Timing measurements are single runs.
-- Overshoot of the drill 2 stalls beyond the timeout is unexplained.
-- Why `latest-mtime` reported no difference in drill 4 is unexplained.
-- Behaviour was observed on one OS release and one Gluster version only.
-- SELinux enforcing and firewalld running were configured as documented, but the output of `getenforce` and `firewall-cmd --state` was not recorded.
-
 **Completion criteria.** Documentation committed, evidence archived, screenshots captured and embedded in the README.
 
 ## Milestone 2: brick replacement, expansion and rebalance (in progress)
@@ -49,7 +40,7 @@ Status values: Planned, In progress, Blocked, Complete. A milestone is marked Co
 | Step | Description | Status |
 |---|---|---|
 | 2a | Rebuild a destroyed brick at the same path with `reset-brick` | Complete |
-| 2b | Replace a brick at a different path or host with `replace-brick` | Planned |
+| 2b | Replace a brick at a different path or host with `replace-brick` | Complete |
 | 2c | Add a second brick per server (2 x 3) and rebalance | Planned |
 
 **Acceptance criteria.**
@@ -59,6 +50,8 @@ Status values: Planned, In progress, Blocked, Complete. A milestone is marked Co
 - 2c: the volume shows `2 x 3` after expansion, a rebalance completes, and file placement is explained using the hash layout attributes on the bricks.
 
 **2a result (2026-10-27).** Met. Both `reset-brick` steps and `heal full` returned `SUCCESS`. The heal did not start in the two minutes between the commit and the command; once issued, the full sweep took about 26 seconds. Both directories came back with matching file counts and digests on all three servers, including the rebuilt one. Full write-up in [brick-replacement.md](brick-replacement.md).
+
+**2b result (2026-10-27).** Met. `gluster3`'s brick was moved from `/data/glusterfs/brick1/vol` to `/data/glusterfs/brick2/vol` on a new 10 GB disk with `replace-brick ... commit force`, while a client wrote 400 files. The heal started by itself 20 ms after the new brick connected, with no heal command, and the self-heal daemon finished about 36 seconds later. All four test directories came back with matching file counts and digests on all three servers. The client had no failed writes and no stall: the slowest of the 400 writes took 0.028 s. The old brick was left with its data and volume ID intact. Full write-up in [brick-replacement.md](brick-replacement.md#2b-move-to-a-new-disk-with-replace-brick).
 
 ## Milestone 3: security and monitoring (planned)
 

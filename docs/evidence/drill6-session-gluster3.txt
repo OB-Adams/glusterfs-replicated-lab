@@ -1,0 +1,219 @@
+# Drill 6: replace-brick of gluster3's brick to a new disk, session log from gluster3
+# Captured 2026-10-27, times UTC.
+# Command lines were printed by a logging helper that dropped shell quoting.
+# Quotes are restored on 1 of them so they read as the commands that ran.
+# Output is unchanged.
+# gluster3 holds the replaced brick. It built the new brick on /dev/vdc and ran replace-brick.
+#
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5   # 19:25:54 UTC
+host:   gluster3
+path:   /data/glusterfs/brick1/vol/drill5
+files:  151
+digest: 2dadf1bbe16a50641b96bb6fc95daed44e5cec26f5745f8c930e00f9500ce891
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill5-during   # 19:25:54 UTC
+host:   gluster3
+path:   /data/glusterfs/brick1/vol/drill5-during
+files:  100
+digest: f7dbbb3a9d724273b71ec9f9c97feb0001180bcddc44761d5f2fa0749830e27b
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill6   # 19:25:54 UTC
+host:   gluster3
+path:   /data/glusterfs/brick1/vol/drill6
+files:  151
+digest: 824aa04651504c3f36f63a1a20eac602a38d322a9519666e9dac40c5a9be791c
+
+$ lsblk -f   # 19:26:23 UTC
+NAME                            FSTYPE      FSVER            LABEL                          UUID                                   FSAVAIL FSUSE% MOUNTPOINTS
+sda                             iso9660     Joliet Extension CentOS-Stream-9-BaseOS-aarch64 2026-10-21-19-35-47-00                                
+vda                                                                                                                                               
+├─vda1                          vfat        FAT32                                           AF16-B554                               591.4M     1% /boot/efi
+├─vda2                          xfs                                                         ff645962-4661-4372-8476-5f88627a4fb5    507.9M    47% /boot
+└─vda3                          LVM2_member LVM2 001                                        uwdKZ0-Ylhk-oHKA-hoL4-nICy-uxmB-DHoxvV                
+  ├─cs-root                     xfs                                                         ee69cfd2-6971-47a4-8df8-ff79b9445d3a     17.2G    14% /
+  └─cs-swap                     swap        1                                               c3d1eb90-6dcc-450d-801d-1910c4a109fe                  [SWAP]
+vdb                                                                                                                                               
+└─vdb1                          LVM2_member LVM2 001                                        fEdnKq-kOwr-Hnhh-JIvc-4lck-1cuZ-LvLlNe                
+  ├─vg_gluster-thinpool_tmeta                                                                                                                     
+  │ └─vg_gluster-thinpool-tpool                                                                                                                   
+  │   ├─vg_gluster-thinpool                                                                                                                       
+  │   └─vg_gluster-brick1       xfs                                                         6578998e-0f5c-4094-8c43-331551fa3de1      7.4G     7% /data/glusterfs/brick1
+  └─vg_gluster-thinpool_tdata                                                                                                                     
+    └─vg_gluster-thinpool-tpool                                                                                                                   
+      ├─vg_gluster-thinpool                                                                                                                       
+      └─vg_gluster-brick1       xfs                                                         6578998e-0f5c-4094-8c43-331551fa3de1      7.4G     7% /data/glusterfs/brick1
+vdc                                                                                                                                               
+
+$ sudo parted -s /dev/vdc mklabel gpt mkpart brick2 0% 100% set 1 lvm on   # 19:26:23 UTC
+
+$ sudo pvcreate /dev/vdc1   # 19:26:23 UTC
+  Physical volume "/dev/vdc1" successfully created.
+
+$ sudo vgcreate vg_gluster2 /dev/vdc1   # 19:26:23 UTC
+  Volume group "vg_gluster2" successfully created
+
+$ sudo lvcreate -L 9G --thinpool thinpool vg_gluster2   # 19:26:23 UTC
+  Thin pool volume with chunk size 64.00 KiB can address at most <15.88 TiB of data.
+  Logical volume "thinpool" created.
+
+$ sudo lvcreate -V 8G --thin -n brick2 vg_gluster2/thinpool   # 19:26:23 UTC
+  Logical volume "brick2" created.
+
+$ sudo mkfs.xfs -i size=512 /dev/vg_gluster2/brick2   # 19:26:25 UTC
+meta-data=/dev/vg_gluster2/brick2 isize=512    agcount=8, agsize=262144 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1    bigtime=1 inobtcount=1 nrext64=0
+data     =                       bsize=4096   blocks=2097152, imaxpct=25
+         =                       sunit=16     swidth=16 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=16384, version=2
+         =                       sectsz=512   sunit=16 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+Discarding blocks...Done.
+
+$ sudo mount /data/glusterfs/brick2   # 19:26:58 UTC
+
+$ sudo mkdir /data/glusterfs/brick2/vol   # 19:26:58 UTC
+
+$ sudo restorecon -Rv /data/glusterfs/brick2   # 19:26:58 UTC
+Relabeled /data/glusterfs/brick2 from system_u:object_r:unlabeled_t:s0 to system_u:object_r:glusterd_brick_t:s0
+Relabeled /data/glusterfs/brick2/vol from unconfined_u:object_r:unlabeled_t:s0 to unconfined_u:object_r:glusterd_brick_t:s0
+
+$ findmnt /data/glusterfs/brick2   # 19:27:18 UTC
+TARGET                 SOURCE                         FSTYPE OPTIONS
+/data/glusterfs/brick2 /dev/mapper/vg_gluster2-brick2 xfs    rw,noatime,seclabel,attr2,inode64,logbufs=8,logbsize=64k,sunit=128,swidth=128,noquota
+
+$ ls -laZ /data/glusterfs/brick2/vol   # 19:27:18 UTC
+total 0
+drwxr-xr-x. 2 root root unconfined_u:object_r:glusterd_brick_t:s0  6 Oct 27 19:26 .
+drwxr-xr-x. 3 root root system_u:object_r:glusterd_brick_t:s0     17 Oct 27 19:26 ..
+
+$ sudo getfattr -d -m . -e hex /data/glusterfs/brick2/vol   # 19:27:18 UTC
+getfattr: Removing leading '/' from absolute path names
+# file: data/glusterfs/brick2/vol
+security.selinux=0x756e636f6e66696e65645f753a6f626a6563745f723a676c7573746572645f627269636b5f743a733000
+
+
+$ sudo lvs -o lv_name,vg_name,lv_size,data_percent,metadata_percent   # 19:27:18 UTC
+  LV       VG          LSize   Data%  Meta% 
+  root     cs          <20.01g              
+  swap     cs            2.40g              
+  brick1   vg_gluster    8.00g 6.86         
+  thinpool vg_gluster    9.00g 6.09   12.17 
+  brick2   vg_gluster2   8.00g 0.79         
+  thinpool vg_gluster2   9.00g 0.70   10.77 
+
+$ sudo gluster volume replace-brick gv0 gluster3:/data/glusterfs/brick1/vol gluster3:/data/glusterfs/brick2/vol commit force   # 19:28:10 UTC
+volume replace-brick: success: replace-brick commit force operation successful
+
+$ sudo gluster volume info gv0   # 19:28:13 UTC
+ 
+Volume Name: gv0
+Type: Replicate
+Volume ID: 91f1a491-6fdf-4b32-b8c8-456973a6b649
+Status: Started
+Snapshot Count: 0
+Number of Bricks: 1 x 3 = 3
+Transport-type: tcp
+Bricks:
+Brick1: gluster1:/data/glusterfs/brick1/vol
+Brick2: gluster2:/data/glusterfs/brick1/vol
+Brick3: gluster3:/data/glusterfs/brick2/vol
+Options Reconfigured:
+cluster.quorum-type: auto
+performance.client-io-threads: off
+transport.address-family: inet
+storage.fips-mode-rchecksum: on
+cluster.granular-entry-heal: on
+
+$ sudo gluster volume status gv0   # 19:28:13 UTC
+Status of volume: gv0
+Gluster process                             TCP Port  RDMA Port  Online  Pid
+------------------------------------------------------------------------------
+Brick gluster1:/data/glusterfs/brick1/vol   60585     0          Y       2200 
+Brick gluster2:/data/glusterfs/brick1/vol   54996     0          Y       2197 
+Brick gluster3:/data/glusterfs/brick2/vol   N/A       N/A        N       N/A  
+Self-heal Daemon on localhost               N/A       N/A        Y       2690 
+Self-heal Daemon on gluster2                N/A       N/A        Y       2425 
+Self-heal Daemon on gluster1                N/A       N/A        Y       2599 
+ 
+Task Status of Volume gv0
+------------------------------------------------------------------------------
+There are no active volume tasks
+ 
+
+$ sudo gluster volume status gv0   # 19:28:29 UTC
+Status of volume: gv0
+Gluster process                             TCP Port  RDMA Port  Online  Pid
+------------------------------------------------------------------------------
+Brick gluster1:/data/glusterfs/brick1/vol   60585     0          Y       2200 
+Brick gluster2:/data/glusterfs/brick1/vol   54996     0          Y       2197 
+Brick gluster3:/data/glusterfs/brick2/vol   50497     0          Y       2679 
+Self-heal Daemon on localhost               N/A       N/A        Y       2690 
+Self-heal Daemon on gluster2                N/A       N/A        Y       2425 
+Self-heal Daemon on gluster1                N/A       N/A        Y       2599 
+ 
+Task Status of Volume gv0
+------------------------------------------------------------------------------
+There are no active volume tasks
+ 
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick2/vol/drill5   # 19:32:04 UTC
+host:   gluster3
+path:   /data/glusterfs/brick2/vol/drill5
+files:  151
+digest: 2dadf1bbe16a50641b96bb6fc95daed44e5cec26f5745f8c930e00f9500ce891
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick2/vol/drill5-during   # 19:32:04 UTC
+host:   gluster3
+path:   /data/glusterfs/brick2/vol/drill5-during
+files:  100
+digest: f7dbbb3a9d724273b71ec9f9c97feb0001180bcddc44761d5f2fa0749830e27b
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick2/vol/drill6   # 19:32:04 UTC
+host:   gluster3
+path:   /data/glusterfs/brick2/vol/drill6
+files:  151
+digest: 824aa04651504c3f36f63a1a20eac602a38d322a9519666e9dac40c5a9be791c
+
+$ sudo bash /root/scripts/compare-bricks.sh /data/glusterfs/brick2/vol/drill6-during   # 19:32:04 UTC
+host:   gluster3
+path:   /data/glusterfs/brick2/vol/drill6-during
+files:  400
+digest: 160a99f48f5e71b3a4aaf22e074779beb49bd1e686e563913623208ca8279533
+
+$ ps -o pid,args -C glusterfsd   # 19:32:30 UTC
+    PID COMMAND
+   2679 /usr/sbin/glusterfsd -s gluster3 --volfile-id gv0.gluster3.data-glusterfs-brick2-vol -p /var/run/gluster/vols/gv0/gluster3-data-glusterfs-brick2-vol.pid -S /var/run/gluster/d2c098a6158a4b3e.socket --brick-name /data/glusterfs/brick2/vol -l /var/log/glusterfs/bricks/data-glusterfs-brick2-vol.log --xlator-option *-posix.glusterd-uuid=a4727315-5cf8-47cb-a1a0-2ffbbb3586ae --process-name brick --brick-port 50497 --xlator-option gv0-server.listen-port=50497
+
+$ bash -c 'sudo ls /data/glusterfs/brick1/vol | head'   # 19:32:30 UTC
+after-recovery
+drill1
+drill2a
+drill2b
+drill3
+drill4
+drill5
+drill5-during
+drill5-rerun
+drill6
+
+$ sudo getfattr -n trusted.glusterfs.volume-id -e hex /data/glusterfs/brick1/vol /data/glusterfs/brick2/vol   # 19:32:30 UTC
+getfattr: Removing leading '/' from absolute path names
+# file: data/glusterfs/brick1/vol
+trusted.glusterfs.volume-id=0x91f1a4916fdf4b32b8c8456973a6b649
+
+# file: data/glusterfs/brick2/vol
+trusted.glusterfs.volume-id=0x91f1a4916fdf4b32b8c8456973a6b649
+
+
+$ sudo lvs -o lv_name,vg_name,lv_size,data_percent   # 19:32:30 UTC
+  LV       VG          LSize   Data% 
+  root     cs          <20.01g       
+  swap     cs            2.40g       
+  brick1   vg_gluster    8.00g 6.86  
+  thinpool vg_gluster    9.00g 6.10  
+  brick2   vg_gluster2   8.00g 6.88  
+  thinpool vg_gluster2   9.00g 6.12  
