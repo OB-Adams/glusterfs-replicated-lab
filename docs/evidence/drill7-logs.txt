@@ -1,0 +1,45 @@
+# Drill 7: rebalance log excerpt, first pass, gluster3
+# /var/log/glusterfs/gv0-rebalance.log from 22:40 to the end of the first pass. Times UTC.
+# The full extract is 1065 lines. Shown: message counts, the first and last migrations,
+# the first free-space skips, and the completion line. Private address masked.
+# The other servers' first-pass skips, gluster2's forced-pass migrations, and the commands
+# that produced them are in drill7-session-gluster1.txt to drill7-session-gluster3.txt.
+
+## Message counts over the extract
+   312 ] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file]
+   107 ] W [MSGID: 109023] [dht-rebalance.c:889:__dht_check_free_space]
+   107 ] I [MSGID: 109120] [dht-rebalance.c:2849:gf_defrag_migrate_single_file]
+    17 ] I [MSGID: 109078] [dht-common.c:5935:dht_setxattr]
+     6 ] I [MSGID: 114020] [client.c:2344:notify]
+     6 ] I [MSGID: 114057] [client-handshake.c:871:select_server_supported_programs]
+     6 ] I [MSGID: 114046] [client-handshake.c:621:client_setvolume_cbk]
+     6 ] I [MSGID: 0] [dht-rebalance.c:3927:dht_init_local_subvols_and_nodeuuids]
+     4 ] I [MSGID: 108031] [afr-common.c:3168:afr_local_discovery_cbk]
+     2 ] I [MSGID: 101188] [event-epoll.c:643:event_dispatch_epoll_worker]
+     2 ] I [MSGID: 108005] [afr-common.c:6025:__afr_handle_child_up_event]
+     2 ] I [MSGID: 108002] [afr-common.c:6404:afr_notify]
+     2 ] I [MSGID: 0] [dht-rebalance.c:3920:dht_init_local_subvols_and_nodeuuids]
+     2 ] I [MSGID: 0] [dht-rebalance.c:3970:gf_defrag_total_file_size]
+     2 ] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk]
+     1 ] I [MSGID: 100030] [glusterfsd.c:2872:main]
+     1 ] I [MSGID: 109101] [dht-shared.c:613:dht_init]
+     1 ] I [MSGID: 0] [dht-shared.c:370:dht_configure_throttle]
+     1 ] I [MSGID: 0] [dht-rebalance.c:3976:gf_defrag_total_file_size]
+     1 ] I [MSGID: 0] [dht-rebalance.c:4499:gf_defrag_get_estimates_based_on_size]
+     1 ] I [MSGID: 109028] [dht-rebalance.c:4634:gf_defrag_status_get]
+
+## First and last migrations
+[2026-10-27 22:40:38.636162 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill1/f6.txt from subvolume gv0-replicate-0 to gv0-replicate-1 
+[2026-10-27 22:40:38.650514 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill1/f13.txt from subvolume gv0-replicate-0 to gv0-replicate-1 
+[2026-10-27 22:40:38.713828 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill1/f14.txt from subvolume gv0-replicate-0 to gv0-replicate-1 
+...
+[2026-10-27 22:40:58.326172 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f104.txt from subvolume gv0-replicate-0 to gv0-replicate-1 
+[2026-10-27 22:40:58.644814 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f107.txt from subvolume gv0-replicate-0 to gv0-replicate-1 
+
+## Free-space skips: 107 in total, first three shown
+[2026-10-27 22:40:58.630761 +0000] W [MSGID: 109023] [dht-rebalance.c:889:__dht_check_free_space] 0-gv0-dht: data movement of file {blocks:1 name:(/drill6-during/f109.txt)} would result in dst node (gv0-replicate-1:15523000) having lower disk space than the source node (gv0-replicate-0:16040768).Skipping file. 
+[2026-10-27 22:40:58.651151 +0000] W [MSGID: 109023] [dht-rebalance.c:889:__dht_check_free_space] 0-gv0-dht: data movement of file {blocks:1 name:(/drill6-during/f111.txt)} would result in dst node (gv0-replicate-1:15523000) having lower disk space than the source node (gv0-replicate-0:16040784).Skipping file. 
+[2026-10-27 22:40:58.670275 +0000] W [MSGID: 109023] [dht-rebalance.c:889:__dht_check_free_space] 0-gv0-dht: data movement of file {blocks:1 name:(/drill6-during/f119.txt)} would result in dst node (gv0-replicate-1:15522936) having lower disk space than the source node (gv0-replicate-0:16040816).Skipping file. 
+
+## Completion
+[2026-10-27 22:41:00.927001 +0000] I [MSGID: 109028] [dht-rebalance.c:4634:gf_defrag_status_get] 0-gv0-dht: Rebalance is completed. Time taken is 22 secs Files migrated: 312, size: 61424254, lookups: 2630, failures: 0, skipped: 107 

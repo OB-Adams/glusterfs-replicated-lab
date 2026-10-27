@@ -34,8 +34,18 @@ This folder holds screenshots of real terminal output from the lab. Each one is 
 | `14-drill6-replace-brick-commit.png` | gluster3 | `sudo gluster volume replace-brick gv0 gluster3:/data/glusterfs/brick1/vol gluster3:/data/glusterfs/brick2/vol commit force`, `sudo gluster volume info gv0`, `sudo gluster volume status gv0`, `sudo grep replace-brick /var/log/glusterfs/cmd_history.log \| tail -1` | The commit succeeding, `Brick3` on the new path and online, and the commit time |
 | `15-drill6-heal-from-shd-log.png` | gluster1 | `sudo grep -E "Connected, attached.*client-2\|full entry selfheal on 00000000-0000-0000-0000-000000000001" /var/log/glusterfs/glustershd.log \| tail -3` | The new brick attaching, then the heal of the root directory starting by itself a tenth of a second later and completing |
 | `16-drill6-digests-match.png` | each server | `./scripts/compare-bricks.sh` on `drill5`, `drill5-during`, `drill6` and `drill6-during` | 151, 100, 151 and 400 files, each with the same digest on all three servers |
+| `17-drill7-old-brick-refused.png` | gluster3 | `getfattr -n trusted.glusterfs.volume-id -e hex /data/glusterfs/brick1/vol`, `gluster volume info gv0 \| grep 'Volume ID'`, then `add-brick` with the three new bricks | The old brick's volume ID matching `gv0`'s, and `add-brick` failing with `already part of a volume` |
+| `18-drill7-volume-expanded.png` | gluster3 | the same `add-brick` after wiping the brick, then `gluster volume info gv0` | `add-brick: success`, `Distributed-Replicate`, `2 x 3 = 6` |
+| `19-drill7-layout-before-rebalance.png` | gluster1 | `getfattr -n trusted.glusterfs.dht -e hex` on `drill7` and `drill7-newdir` on both bricks, and a regular-file count per brick | Before any rebalance: `drill7` with no range on set 2 and 350/0 files, `drill7-newdir` split with 45/55 |
+| `20-drill7-rebalance-skipped.png` | gluster1 | `gluster volume rebalance gv0 start`, then `status` twice | The first rebalance in progress, then completed with 105, 108 and 107 skipped |
+| `21-drill7-layout-after-rebalance.png` | gluster1 | the same layout and count commands as 19 | Split layout with commit hash `570942e4`, files still 350/0 |
+| `22-drill7-skip-and-link-file.png` | gluster2 | `grep 'lower disk space' ~/drill7-rebalance.log \| grep -m1 drill7`, `ls -l` and `getfattr -n trusted.glusterfs.dht.linkto` on `drill7/f3.bin` on `brick2` | The free-space skip message and the `---------T` link file pointing to `gv0-replicate-0` |
+| `23-drill7-rebalance-force-completed.png` | gluster1 | `gluster volume rebalance gv0 status` after `start force` | 105, 127 and 107 files moved, 0 skipped, 0 failures |
+| `24-drill7-layout-after-force.png` | gluster1 | the same layout and count commands as 19, and a link-file count | Commit hash `57096e02`, `drill7` at 177/173, no link files |
+| `25-drill7-client-placement.png` | gluster4 | `getfattr -n trusted.glusterfs.pathinfo -e text` on `drill7/f3.bin` and `drill7/f1.bin`, `df -h /mnt/gv0` | One file on each replica set with its three bricks, and 16G of capacity |
+| `26-drill7-set-digests.png` | each server | `./scripts/compare-bricks.sh` on `drill7` on both bricks | Set 1: 177 files, set 2: 173 files, each digest identical on all three servers |
 
-The procedures are in [../docs/failure-drills.md](../docs/failure-drills.md) for drills 1 to 4 and [../docs/brick-replacement.md](../docs/brick-replacement.md) for drills 5 and 6.
+The procedures are in [../docs/failure-drills.md](../docs/failure-drills.md) for drills 1 to 4, [../docs/brick-replacement.md](../docs/brick-replacement.md) for drills 5 and 6, and [../docs/expansion.md](../docs/expansion.md) for drill 7.
 
 ## Adding another screenshot
 

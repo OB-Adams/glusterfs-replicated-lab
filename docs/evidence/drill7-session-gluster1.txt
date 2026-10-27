@@ -1,0 +1,465 @@
+# Drill 7: expansion to 2 x 3 and rebalance, session log from gluster1
+# Captured 2026-10-27 with script(1), times UTC. Private address masked.
+# Cleaned for reading: terminal control codes removed, and the duplicate echoes the
+# terminal draws for pasted commands removed. Output is unchanged.
+# The recording lost 5 command line(s), restored here from cmd_history.log and the raw
+# recording: df (run here by mistake; the client is gluster4), the three rebalance status calls around the first start, the getfattr on drill3 and drill6, and the closing check-cluster.sh.
+# gluster1 ran the baseline and closing checks, built its new brick, ran both rebalances and read the layouts and file counts before and after each.
+#
+
+Script started on 2026-10-27 22:26:15+00:00 [TERM="xterm-256color" TTY="/dev/pts/0" COLUMNS="162" LINES="48"]
+root@gluster1:~# ./scripts/check-cluster.sh
+
+== peers ==
+UUID					Hostname 	State
+dafb797c-f2c6-4693-8fd0-b5877f34e70e	gluster2 	Connected
+a4727315-5cf8-47cb-a1a0-2ffbbb3586ae	gluster3 	Connected
+5b24c36c-3aa7-4ec2-9f94-67da01d45b4e	localhost	Connected
+
+== volume status: gv0 ==
+Status of volume: gv0
+Gluster process                             TCP Port  RDMA Port  Online  Pid
+------------------------------------------------------------------------------
+Brick gluster1:/data/glusterfs/brick1/vol   60585     0          Y       2200
+Brick gluster2:/data/glusterfs/brick1/vol   54996     0          Y       2197
+Brick gluster3:/data/glusterfs/brick2/vol   56584     0          Y       3709
+Self-heal Daemon on localhost               N/A       N/A        Y       3599
+Self-heal Daemon on gluster2                N/A       N/A        Y       3242
+Self-heal Daemon on gluster3                N/A       N/A        Y       3720
+
+Task Status of Volume gv0
+------------------------------------------------------------------------------
+There are no active volume tasks
+
+
+== heal summary: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+
+== split-brain entries: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+
+== selected options: gv0 ==
+cluster.quorum-type                      auto
+cluster.server-quorum-type               off
+cluster.self-heal-daemon                 on (DEFAULT)
+network.ping-timeout                     42 (DEFAULT)
+root@gluster1:~# gluster volume info gv0
+
+Volume Name: gv0
+Type: Replicate
+Volume ID: 91f1a491-6fdf-4b32-b8c8-456973a6b649
+Status: Started
+Snapshot Count: 0
+Number of Bricks: 1 x 3 = 3
+Transport-type: tcp
+Bricks:
+Brick1: gluster1:/data/glusterfs/brick1/vol
+Brick2: gluster2:/data/glusterfs/brick1/vol
+Brick3: gluster3:/data/glusterfs/brick2/vol
+Options Reconfigured:
+performance.client-io-threads: off
+transport.address-family: inet
+storage.fips-mode-rchecksum: on
+cluster.granular-entry-heal: on
+cluster.quorum-type: auto
+root@gluster1:~# ./scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill7
+host:   gluster1
+path:   /data/glusterfs/brick1/vol/drill7
+files:  300
+digest: 58adce454feaa891d260f452708d4f8d667ead8b923c3631d119a70ba5d6ff57
+root@gluster1:~# getfattr -n trusted.glusterfs.dht -e hex /data/glusterfs/brick1/vol/drill7
+getfattr: Removing leading '/' from absolute path names
+# file: data/glusterfs/brick1/vol/drill7
+trusted.glusterfs.dht=0x000000000000000000000000ffffffff
+
+root@gluster1:~# parted -s /dev/vdc mklabel gpt mkpart brick2 0% 100% set 1 lvm on
+root@gluster1:~# pvcreate /dev/vdc1
+  Physical volume "/dev/vdc1" successfully created.
+root@gluster1:~# vgcreate vg_gluster2 /dev/vdc1
+  Volume group "vg_gluster2" successfully created
+root@gluster1:~# lvcreate -L 9G --thinpool thinpool vg_gluster2
+  Thin pool volume with chunk size 64.00 KiB can address at most <15.88 TiB of data.
+  Logical volume "thinpool" created.
+root@gluster1:~# lvcreate -V 8G --thin -n brick2 vg_gluster2/thinpool
+  Logical volume "brick2" created.
+root@gluster1:~# mkfs.xfs -i size=512 /dev/vg_gluster2/brick2
+meta-data=/dev/vg_gluster2/brick2 isize=512    agcount=8, agsize=262144 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1    bigtime=1 inobtcount=1 nrext64=0
+data     =                       bsize=4096   blocks=2097152, imaxpct=25
+         =                       sunit=16     swidth=16 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=16384, version=2
+         =                       sectsz=512   sunit=16 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+Discarding blocks...Done.
+root@gluster1:~# mkdir -p /data/glusterfs/brick2
+root@gluster1:~# echo '/dev/vg_gluster2/brick2 /data/glusterfs/brick2 xfs defaults,noatime 0 0' >> /etc/fstab
+root@gluster1:~# systemctl daemon-reload
+root@gluster1:~# mount /data/glusterfs/brick2
+root@gluster1:~# mkdir /data/glusterfs/brick2/vol
+root@gluster1:~# restorecon -Rv /data/glusterfs/brick2
+Relabeled /data/glusterfs/brick2 from system_u:object_r:unlabeled_t:s0 to system_u:object_r:glusterd_brick_t:s0
+Relabeled /data/glusterfs/brick2/vol from unconfined_u:object_r:unlabeled_t:s0 to unconfined_u:object_r:glusterd_brick_t:s0
+root@gluster1:~# findmnt /data/glusterfs/brick2
+TARGET                 SOURCE                         FSTYPE OPTIONS
+/data/glusterfs/brick2 /dev/mapper/vg_gluster2-brick2 xfs    rw,noatime,seclabel,attr2,inode64,logbufs=8,logbsize=64k,sunit=128,swidth=128,noquota
+root@gluster1:~# ls -laZ /data/glusterfs/brick2/vol
+total 0
+drwxr-xr-x. 2 root root unconfined_u:object_r:glusterd_brick_t:s0  6 Oct 27 22:31 .
+drwxr-xr-x. 3 root root system_u:object_r:glusterd_brick_t:s0     17 Oct 27 22:31 ..
+root@gluster1:~# gluster volume status gv0
+Status of volume: gv0
+Gluster process                             TCP Port  RDMA Port  Online  Pid
+------------------------------------------------------------------------------
+Brick gluster1:/data/glusterfs/brick1/vol   60585     0          Y       2200
+Brick gluster2:/data/glusterfs/brick1/vol   54996     0          Y       2197
+Brick gluster3:/data/glusterfs/brick2/vol   56584     0          Y       3709
+Brick gluster1:/data/glusterfs/brick2/vol   60601     0          Y       4380
+Brick gluster2:/data/glusterfs/brick2/vol   53603     0          Y       3733
+Brick gluster3:/data/glusterfs/brick1/vol   54830     0          Y       4256
+Self-heal Daemon on localhost               N/A       N/A        Y       3599
+Self-heal Daemon on gluster2                N/A       N/A        Y       3242
+Self-heal Daemon on gluster3                N/A       N/A        Y       3720
+
+Task Status of Volume gv0
+------------------------------------------------------------------------------
+There are no active volume tasks
+
+root@gluster1:~# df -h /mnt/gv0
+df: /mnt/gv0: No such file or directory
+
+root@gluster1:~# getfattr -n trusted.glusterfs.dht -e hex \
+  /data/glusterfs/brick1/vol/drill7 /data/glusterfs/brick2/vol/drill7 \
+  /data/glusterfs/brick1/vol/drill7-newdir /data/glusterfs/brick2/vol/drill7-newdir
+for d in drill7 drill7-newdir; do for b in brick1 brick2; do
+  printf '%-14s %-7s %s\n' "$d" "$b" "$(find /data/glusterfs/$b/vol/$d -maxdepth 1 -type f ! -perm 1000 | wc -l)"
+done; done
+getfattr: Removing leading '/' from absolute path names
+# file: data/glusterfs/brick1/vol/drill7
+trusted.glusterfs.dht=0x000000000000000000000000ffffffff
+
+# file: data/glusterfs/brick2/vol/drill7
+trusted.glusterfs.dht=0x00000000000000000000000000000000
+
+# file: data/glusterfs/brick1/vol/drill7-newdir
+trusted.glusterfs.dht=0x00000000000000007fffffffffffffff
+
+# file: data/glusterfs/brick2/vol/drill7-newdir
+trusted.glusterfs.dht=0x0000000000000000000000007ffffffe
+
+drill7         brick1  350
+drill7         brick2  0
+drill7-newdir  brick1  45
+drill7-newdir  brick2  55
+root@gluster1:~# clear
+root@gluster1:~# gluster volume rebalance gv0 status
+volume rebalance: gv0: failed: Rebalance not started for volume gv0.
+root@gluster1:~# gluster volume rebalance gv0 start
+volume rebalance: gv0: success: Rebalance on gv0 has been started successfully. Use rebalance status command to check status of the rebalance process.
+ID: 415c2bfe-c3dd-4b76-a8e7-54e0fad3646e
+root@gluster1:~# gluster volume rebalance gv0 status
+                                    Node Rebalanced-files          size       scanned      failures       skipped               status  run time in h:m:s
+                               ---------      -----------   -----------   -----------   -----------   -----------         ------------     --------------
+                                gluster2              128         1.4KB          1129             0             0          in progress        0:00:07
+                                gluster3              109         1.1KB          1123             0             0          in progress        0:00:07
+                               localhost              104         1.0KB          1137             0             0          in progress        0:00:07
+The estimated time for rebalance to complete will be unavailable for the first 10 minutes.
+volume rebalance: gv0: success
+root@gluster1:~# gluster volume rebalance gv0 status
+                                    Node Rebalanced-files          size       scanned      failures       skipped               status  run time in h:m:s
+                               ---------      -----------   -----------   -----------   -----------   -----------         ------------     --------------
+                                gluster2              315       305.4MB          2632             0           108            completed        0:00:22
+                                gluster3              312        58.6MB          2630             0           107            completed        0:00:22
+                               localhost              281         5.5MB          2630             0           105            completed        0:00:22
+volume rebalance: gv0: success
+root@gluster1:~# clear
+root@gluster1:~# getfattr -n trusted.glusterfs.dht -e hex \
+  /data/glusterfs/brick1/vol/drill7 /data/glusterfs/brick2/vol/drill7 \
+  /data/glusterfs/brick1/vol/drill7-newdir /data/glusterfs/brick2/vol/drill7-newdir
+for d in drill7 drill7-newdir; do for b in brick1 brick2; do
+  printf '%-14s %-7s %s\n' "$d" "$b" "$(find /data/glusterfs/$b/vol/$d -maxdepth 1 -type f ! -perm 1000 | wc -l)"
+done; done
+getfattr: Removing leading '/' from absolute path names
+# file: data/glusterfs/brick1/vol/drill7
+trusted.glusterfs.dht=0x570942e4000000007fffffffffffffff
+
+# file: data/glusterfs/brick2/vol/drill7
+trusted.glusterfs.dht=0x570942e400000000000000007ffffffe
+
+# file: data/glusterfs/brick1/vol/drill7-newdir
+trusted.glusterfs.dht=0x570942e4000000007fffffffffffffff
+
+# file: data/glusterfs/brick2/vol/drill7-newdir
+trusted.glusterfs.dht=0x570942e400000000000000007ffffffe
+
+drill7         brick1  350
+drill7         brick2  0
+drill7-newdir  brick1  45
+drill7-newdir  brick2  55
+root@gluster1:~# find /data/glusterfs/brick2/vol/drill7 -maxdepth 1 -perm 1000 | wc -l
+stat -c '%w  %n' /data/glusterfs/brick2/vol/drill7 /data/glusterfs/brick2/vol/drill7-newdir
+stat -c '%y  %n' /data/glusterfs/brick1/vol/drill7/late1.bin /data/glusterfs/brick1/vol/drill7/late50.bin
+173
+2026-10-27 22:37:16.469895647 +0000  /data/glusterfs/brick2/vol/drill7
+2026-10-27 22:37:16.689895285 +0000  /data/glusterfs/brick2/vol/drill7-newdir
+2026-10-27 22:37:16.479895630 +0000  /data/glusterfs/brick1/vol/drill7/late1.bin
+2026-10-27 22:37:16.679895301 +0000  /data/glusterfs/brick1/vol/drill7/late50.bin
+root@gluster1:~# cd /data/glusterfs/brick2/vol/drill7
+find . -maxdepth 1 -perm 1000 -name 'late*' | wc -l
+find . -maxdepth 1 -perm 1000 -name 'f*' | wc -l
+find . -maxdepth 1 -perm 1000 -exec stat -c '%w  %n' {} + | sort | sed -n '1,2p;$p'
+getfattr -n trusted.glusterfs.dht.linkto -e text "$(find . -maxdepth 1 -perm 1000 | head -1)"
+stat -c '%z  %n' /data/glusterfs/brick1/vol/drill7 /data/glusterfs/brick2/vol/drill7
+find /data/glusterfs/brick1/vol/drill7-newdir /data/glusterfs/brick2/vol/drill7-newdir -maxdepth 1 -perm 1000 | wc -l
+cd
+22
+151
+2026-10-27 22:40:59.499528888 +0000  ./f3.bin
+2026-10-27 22:40:59.509528871 +0000  ./f4.bin
+2026-10-27 22:41:00.759526816 +0000  ./late50.bin
+# file: ./f3.bin
+trusted.glusterfs.dht.linkto="gv0-replicate-0"
+
+2026-10-27 22:40:59.629528674 +0000  /data/glusterfs/brick1/vol/drill7
+2026-10-27 22:41:00.759526816 +0000  /data/glusterfs/brick2/vol/drill7
+0
+root@gluster1:~# grep '2026-10-27 22:[234]' /var/log/glusterfs/cmd_history.log
+grep -l '2026-10-27 22:40:5[89]\|2026-10-27 22:41:0[01]' /var/log/glusterfs/*.log /var/log/glusterfs/bricks/*.log
+gluster volume rebalance gv0 status
+mount -t fuse.glusterfs
+[2026-10-27 22:27:07.202583 +0000]  : volume status gv0 : SUCCESS
+[2026-10-27 22:36:47.260473 +0000]  : volume status gv0 : SUCCESS
+[2026-10-27 22:40:24.836545 +0000]  : volume rebalance gv0 status : FAILED : Rebalance not started for volume gv0.
+[2026-10-27 22:40:38.437199 +0000]  : volume rebalance gv0 start : SUCCESS
+[2026-10-27 22:40:45.481604 +0000]  : volume rebalance gv0 status : SUCCESS
+[2026-10-27 22:41:13.375450 +0000]  : volume rebalance gv0 status : SUCCESS
+/var/log/glusterfs/glusterd.log
+/var/log/glusterfs/gv0-rebalance.log
+/var/log/glusterfs/bricks/data-glusterfs-brick1-vol.log
+/var/log/glusterfs/bricks/data-glusterfs-brick2-vol.log
+                                    Node Rebalanced-files          size       scanned      failures       skipped               status  run time in h:m:s
+                               ---------      -----------   -----------   -----------   -----------   -----------         ------------     --------------
+                                gluster2              315       305.4MB          2632             0           108            completed        0:00:22
+                                gluster3              312        58.6MB          2630             0           107            completed        0:00:22
+                               localhost              281         5.5MB          2630             0           105            completed        0:00:22
+volume rebalance: gv0: success
+root@gluster1:~# awk '$0 >= "[2026-10-27 22:40"' /var/log/glusterfs/gv0-rebalance.log > ~/drill7-rebalance.log
+grep -c 'lower disk space' ~/drill7-rebalance.log
+grep 'lower disk space' ~/drill7-rebalance.log | grep -m1 drill7 | cut -c1-400
+105
+[2026-10-27 22:40:59.551877 +0000] W [MSGID: 109023] [dht-rebalance.c:889:__dht_check_free_space] 0-gv0-dht: data movement of file {blocks:8 name:(/drill7/f14.bin)} would result in dst node (gv0-replicate-1:15522720) having lower disk space than the source node (gv0-replicate-0:16040816).Skipping file.
+root@gluster1:~# clear
+root@gluster1:~# getfattr -n trusted.glusterfs.dht -e hex \
+  /data/glusterfs/brick1/vol/drill7 /data/glusterfs/brick2/vol/drill7 \
+  /data/glusterfs/brick1/vol/drill7-newdir /data/glusterfs/brick2/vol/drill7-newdir
+for d in drill7 drill7-newdir; do for b in brick1 brick2; do
+  printf '%-14s %-7s %s\n' "$d" "$b" "$(find /data/glusterfs/$b/vol/$d -maxdepth 1 -type f ! -perm 1000 | wc -l)"
+done; done
+getfattr: Removing leading '/' from absolute path names
+# file: data/glusterfs/brick1/vol/drill7
+trusted.glusterfs.dht=0x570942e4000000007fffffffffffffff
+
+# file: data/glusterfs/brick2/vol/drill7
+trusted.glusterfs.dht=0x570942e400000000000000007ffffffe
+
+# file: data/glusterfs/brick1/vol/drill7-newdir
+trusted.glusterfs.dht=0x570942e4000000007fffffffffffffff
+
+# file: data/glusterfs/brick2/vol/drill7-newdir
+trusted.glusterfs.dht=0x570942e400000000000000007ffffffe
+
+drill7         brick1  350
+drill7         brick2  0
+drill7-newdir  brick1  45
+drill7-newdir  brick2  55
+root@gluster1:~# clear
+root@gluster1:~# gluster volume rebalance gv0 start force
+volume rebalance: gv0: success: Rebalance on gv0 has been started successfully. Use rebalance status command to check status of the rebalance process.
+ID: 5c265949-ac3d-459d-9125-f5dfa71d898b
+root@gluster1:~# gluster volume rebalance gv0 status
+                                    Node Rebalanced-files          size       scanned      failures       skipped               status  run time in h:m:s
+                               ---------      -----------   -----------   -----------   -----------   -----------         ------------     --------------
+                                gluster2              127       200.2MB          2916             0             0            completed        0:00:08
+                                gluster3              107       244.2KB          2950             0             0            completed        0:00:07
+                               localhost              105       236.2KB          2950             0             0            completed        0:00:07
+volume rebalance: gv0: success
+root@gluster1:~# clear
+root@gluster1:~# getfattr -n trusted.glusterfs.dht -e hex \
+  /data/glusterfs/brick1/vol/drill7 /data/glusterfs/brick2/vol/drill7 \
+  /data/glusterfs/brick1/vol/drill7-newdir /data/glusterfs/brick2/vol/drill7-newdir
+for d in drill7 drill7-newdir; do for b in brick1 brick2; do
+  printf '%-14s %-7s %s\n' "$d" "$b" "$(find /data/glusterfs/$b/vol/$d -maxdepth 1 -type f ! -perm 1000 | wc -l)"
+done; done
+find /data/glusterfs/brick2/vol/drill7 -maxdepth 1 -perm 1000 | wc -l
+getfattr: Removing leading '/' from absolute path names
+# file: data/glusterfs/brick1/vol/drill7
+trusted.glusterfs.dht=0x57096e02000000007fffffffffffffff
+
+# file: data/glusterfs/brick2/vol/drill7
+trusted.glusterfs.dht=0x57096e0200000000000000007ffffffe
+
+# file: data/glusterfs/brick1/vol/drill7-newdir
+trusted.glusterfs.dht=0x57096e02000000007fffffffffffffff
+
+# file: data/glusterfs/brick2/vol/drill7-newdir
+trusted.glusterfs.dht=0x57096e0200000000000000007ffffffe
+
+drill7         brick1  177
+drill7         brick2  173
+drill7-newdir  brick1  45
+drill7-newdir  brick2  55
+0
+root@gluster1:~# grep -E 'completed migration of /drill3/f17\.txt |completed migration of /drill6/big\.bin ' /var/log/glusterfs/gv0-rebalance.log | cut -c1-260
+root@gluster1:~# getfattr -n trusted.glusterfs.dht -e hex /data/glusterfs/brick1/vol/drill3 /data/glusterfs/brick2/vol/drill3 /data/glusterfs/brick1/vol/drill6 /data/glusterfs/brick2/vol/drill6
+getfattr: Removing leading '/' from absolute path names
+# file: data/glusterfs/brick1/vol/drill3
+trusted.glusterfs.dht=0x57096e0200000000000000007ffffffe
+
+# file: data/glusterfs/brick2/vol/drill3
+trusted.glusterfs.dht=0x57096e02000000007fffffffffffffff
+
+# file: data/glusterfs/brick1/vol/drill6
+trusted.glusterfs.dht=0x57096e0200000000000000007ffffffe
+
+# file: data/glusterfs/brick2/vol/drill6
+trusted.glusterfs.dht=0x57096e02000000007fffffffffffffff
+
+root@gluster1:~# ./scripts/check-cluster.sh
+
+== peers ==
+UUID					Hostname 	State
+dafb797c-f2c6-4693-8fd0-b5877f34e70e	gluster2 	Connected
+a4727315-5cf8-47cb-a1a0-2ffbbb3586ae	gluster3 	Connected
+5b24c36c-3aa7-4ec2-9f94-67da01d45b4e	localhost	Connected
+
+== volume status: gv0 ==
+Status of volume: gv0
+Gluster process                             TCP Port  RDMA Port  Online  Pid
+------------------------------------------------------------------------------
+Brick gluster1:/data/glusterfs/brick1/vol   60585     0          Y       2200
+Brick gluster2:/data/glusterfs/brick1/vol   54996     0          Y       2197
+Brick gluster3:/data/glusterfs/brick2/vol   56584     0          Y       3709
+Brick gluster1:/data/glusterfs/brick2/vol   60601     0          Y       4380
+Brick gluster2:/data/glusterfs/brick2/vol   53603     0          Y       3733
+Brick gluster3:/data/glusterfs/brick1/vol   54830     0          Y       4256
+Self-heal Daemon on localhost               N/A       N/A        Y       3599
+Self-heal Daemon on gluster3                N/A       N/A        Y       3720
+Self-heal Daemon on gluster2                N/A       N/A        Y       3242
+
+Task Status of Volume gv0
+------------------------------------------------------------------------------
+Task                 : Rebalance
+ID                   : 5c265949-ac3d-459d-9125-f5dfa71d898b
+Status               : completed
+
+
+== heal summary: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster1:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+
+== split-brain entries: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster1:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster2:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+
+== selected options: gv0 ==
+cluster.quorum-type                      auto
+cluster.server-quorum-type               off
+cluster.self-heal-daemon                 on (DEFAULT)
+network.ping-timeout                     42 (DEFAULT)
+root@gluster1:~# exit
+Script done on 2026-10-27 23:25:08+00:00 [COMMAND_EXIT_CODE="0"]

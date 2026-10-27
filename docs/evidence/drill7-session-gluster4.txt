@@ -1,0 +1,29 @@
+# Drill 7: expansion to 2 x 3 and rebalance, client (gluster4)
+# Captured 2026-10-27, times UTC. Output pasted from the terminal during the session;
+# the gluster4 terminal recording was not kept.
+# gluster4 wrote the test data before and after the expansion and checked the original
+# 300 files after both rebalances. pathinfo and df after the expansion are in screenshot 25.
+
+## Commands run on the client during the drill (shell history)
+root@gluster4:~# history | tail -25
+  ...
+  202  df -h /mnt/gv0
+  203  mkdir /mnt/gv0/drill7
+  204  for i in $(seq 1 300); do head -c 4096 /dev/urandom > /mnt/gv0/drill7/f$i.bin; done
+  205  ./scripts/compare-bricks.sh /mnt/gv0/drill7
+  206  df -h /mnt/gv0
+  207  for i in $(seq 1 50); do head -c 4096 /dev/urandom > /mnt/gv0/drill7/late$i.bin; done
+  208  mkdir /mnt/gv0/drill7-newdir
+  209  for i in $(seq 1 100); do head -c 4096 /dev/urandom > /mnt/gv0/drill7-newdir/f$i.bin; done
+  ...
+
+## Original 300 files after both rebalances, and the Part 2 baseline from the recording
+root@gluster4:~# cd /mnt/gv0/drill7 && find . -type f -name 'f*.bin' -print0 | sort -z | xargs -0 sha256sum | sha256sum; cd
+58adce454feaa891d260f452708d4f8d667ead8b923c3631d119a70ba5d6ff57  -
+root@gluster4:~# grep -a -A4 'compare-bricks.sh /mnt/gv0/drill7' ~/drill7-session-gluster4.txt | head -6
+root@gluster4:~# ./scripts/compare-bricks.sh /mnt/gv0/drill7
+host:   gluster4
+path:   /mnt/gv0/drill7
+files:  300
+digest: 58adce454feaa891d260f452708d4f8d667ead8b923c3631d119a70ba5d6ff57
+--

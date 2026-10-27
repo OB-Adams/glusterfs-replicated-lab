@@ -1,6 +1,6 @@
 # glusterfs-replicated-lab
 
-A hands-on GlusterFS lab: a three-node replica 3 volume built from scratch on Linux VMs, followed by documented failure drills (graceful node loss, hard failure, quorum loss and split-brain) and brick replacement drills, with captured evidence and operational notes.
+A hands-on GlusterFS lab: a three-node replica 3 volume built from scratch on Linux VMs, followed by documented failure drills (graceful node loss, hard failure, quorum loss and split-brain) brick replacement drills, and an expansion to a distributed-replicated volume with rebalancing, with captured evidence and operational notes.
 
 This is phase 1 of a storage study. Phase 2 will rebuild the same VMs as a CephFS cluster and compare the two systems under the same tests.
 
@@ -13,7 +13,7 @@ This is phase 1 of a storage study. Phase 2 will rebuild the same VMs as a CephF
 | Screenshots | Added in [screenshots/](screenshots) (see [Screenshots and evidence](#screenshots-and-evidence)) |
 | Milestone 2a: brick rebuild with `reset-brick` | Complete |
 | Milestone 2b: `replace-brick` to a new disk | Complete |
-| Milestone 2c: expansion to 2 x 3 and rebalance | Planned |
+| Milestone 2c: expansion to 2 x 3 and rebalance | Complete |
 | TLS, access control and monitoring | Planned |
 | `fio` baseline | Planned |
 | Ansible automation of the build | Planned |
@@ -34,12 +34,13 @@ Upstream GlusterFS development has slowed and Red Hat's commercial Gluster Stora
 
 ## Features implemented
 
-- Three-server trusted storage pool with one replica 3 volume (`gv0`).
+- Three-server trusted storage pool with one volume (`gv0`), replica 3, distributed over two replica sets since milestone 2c.
 - Bricks on LVM thin volumes formatted XFS with 512-byte inodes, mounted by `/etc/fstab`, labelled for SELinux.
 - FUSE client on a separate VM with backup volfile servers.
 - Four failure drills with real output: graceful node loss and self-heal, hard failure and `network.ping-timeout`, quorum loss, split-brain creation and resolution.
 - A brick rebuild drill: the brick on one server destroyed, rebuilt empty at the same path, re-admitted with `reset-brick`, and repaired by the self-heal daemon.
 - A brick move drill: the brick on one server moved to a new disk with `replace-brick` while a client keeps writing, then filled by the self-heal daemon.
+- An expansion drill: a second replica set added with `add-brick`, file placement traced through the hash layout on the bricks, a rebalance that skipped files on the free-space rule, and a forced rebalance.
 - Helper scripts for health checks, latency-measuring writers and brick comparison.
 
 ## Architecture
@@ -49,10 +50,10 @@ flowchart LR
     subgraph clientvm["Client VM"]
         C["gluster4<br/>FUSE client<br/>mounted at /mnt/gv0"]
     end
-    subgraph pool["Trusted storage pool: volume gv0, replica 3"]
-        N1["gluster1<br/>glusterd + brick"]
-        N2["gluster2<br/>glusterd + brick"]
-        N3["gluster3<br/>glusterd + brick"]
+    subgraph pool["Trusted storage pool: volume gv0, 2 x 3"]
+        N1["gluster1<br/>glusterd + 2 bricks"]
+        N2["gluster2<br/>glusterd + 2 bricks"]
+        N3["gluster3<br/>glusterd + 2 bricks"]
     end
     C -->|"24007/tcp: volfile fetched at mount"| N1
     C -->|"brick ports: data to every brick"| N1
@@ -95,6 +96,7 @@ glusterfs-replicated-lab/
 │   ├── architecture.md
 │   ├── brick-replacement.md
 │   ├── build-guide.md
+│   ├── expansion.md
 │   ├── failure-drills.md
 │   ├── milestones.md
 │   ├── troubleshooting.md
@@ -112,7 +114,12 @@ glusterfs-replicated-lab/
 │       ├── drill6-session-gluster1.txt
 │       ├── drill6-session-gluster2.txt
 │       ├── drill6-session-gluster3.txt
-│       └── drill6-session-gluster4.txt
+│       ├── drill6-session-gluster4.txt
+│       ├── drill7-logs.txt
+│       ├── drill7-session-gluster1.txt
+│       ├── drill7-session-gluster2.txt
+│       ├── drill7-session-gluster3.txt
+│       └── drill7-session-gluster4.txt
 ├── scripts/
 │   ├── check-cluster.sh
 │   ├── compare-bricks.sh
@@ -136,14 +143,24 @@ glusterfs-replicated-lab/
     ├── 13-drill6-new-brick-ready.png
     ├── 14-drill6-replace-brick-commit.png
     ├── 15-drill6-heal-from-shd-log.png
-    └── 16-drill6-digests-match.png
+    ├── 16-drill6-digests-match.png
+    ├── 17-drill7-old-brick-refused.png
+    ├── 18-drill7-volume-expanded.png
+    ├── 19-drill7-layout-before-rebalance.png
+    ├── 20-drill7-rebalance-skipped.png
+    ├── 21-drill7-layout-after-rebalance.png
+    ├── 22-drill7-skip-and-link-file.png
+    ├── 23-drill7-rebalance-force-completed.png
+    ├── 24-drill7-layout-after-force.png
+    ├── 25-drill7-client-placement.png
+    └── 26-drill7-set-digests.png
 ```
 
 ## Prerequisites
 
 - A hypervisor (this lab used UTM on an Apple Silicon Mac with virtualized aarch64 guests).
 - Four Linux VMs: three storage servers and one client. This lab used 4 GB RAM each.
-- One extra virtual disk on each server for the brick, and a second one from milestone 2b onwards.
+- Two extra virtual disks on each server, one per brick. The first build uses one; the second was added for milestones 2b and 2c.
 - Hostnames resolvable on every VM (this lab used `/etc/hosts`) and working time synchronisation (chrony).
 - Outbound internet access on the VMs to install packages.
 
@@ -172,8 +189,9 @@ The behaviour recorded in the drills applies to this OS release and Gluster vers
 | Volume name | `gv0` |
 | Client mount point | `/mnt/gv0` |
 | Physical volume | `/dev/vdb1` (a partition on the extra disk) |
-| Second disk, from milestone 2b | `/dev/vdc1`, volume group `vg_gluster2`, thin pool `thinpool`, thin LV `brick2`, mounted at `/data/glusterfs/brick2` |
-| Brick on `gluster3` after milestone 2b | `/data/glusterfs/brick2/vol` (the other two servers still use `brick1`) |
+| Second disk, from milestones 2b and 2c | `/dev/vdc1`, volume group `vg_gluster2`, thin pool `thinpool`, thin LV `brick2`, mounted at `/data/glusterfs/brick2` |
+| Replica set 1 | `brick1` on `gluster1` and `gluster2`, `brick2` on `gluster3` |
+| Replica set 2 | `brick2` on `gluster1` and `gluster2`, `brick1` on `gluster3` |
 
 Disk and pool sizes are not fixed by this lab. Size them to your disks, and keep the thin LV's virtual size below the pool size so the pool cannot be overcommitted by accident.
 
@@ -258,7 +276,7 @@ sudo gluster peer detach gluster3
 
 Do not reuse a brick directory after deleting a volume: it keeps volume identity attributes and Gluster will refuse to reuse it. Recreate the filesystem instead (`mkfs.xfs -f -i size=512`) or remove the logical volumes entirely.
 
-Recovery procedures for node failure, hard failure, quorum loss and split-brain are documented as drills in [docs/failure-drills.md](docs/failure-drills.md). Rebuilding a destroyed brick and moving a brick to a new disk are in [docs/brick-replacement.md](docs/brick-replacement.md).
+Recovery procedures for node failure, hard failure, quorum loss and split-brain are documented as drills in [docs/failure-drills.md](docs/failure-drills.md). Rebuilding a destroyed brick and moving a brick to a new disk are in [docs/brick-replacement.md](docs/brick-replacement.md). Adding a replica set and rebalancing are in [docs/expansion.md](docs/expansion.md).
 
 ## Screenshots and evidence
 
@@ -350,6 +368,48 @@ Raw command output and log excerpts from the drills are in [docs/evidence](docs/
 
 *All four test directories compared on `gluster1`, `gluster2` and `gluster3` after the move, with the same counts and digests on every server.*
 
+### Drill 7: expansion to 2 x 3 and rebalance ([details](docs/expansion.md))
+
+![add-brick refusing the old brick](screenshots/17-drill7-old-brick-refused.png)
+
+*`gluster3`'s old brick still carries `gv0`'s volume ID, so `add-brick` refuses it: `already part of a volume`.*
+
+![The volume expanded to 2 x 3](screenshots/18-drill7-volume-expanded.png)
+
+*After the old brick is wiped, `add-brick` succeeds and `gv0` becomes `Distributed-Replicate`, `2 x 3 = 6`, with Brick4 to Brick6 forming the second set.*
+
+![Layouts and file counts before the rebalance](screenshots/19-drill7-layout-before-rebalance.png)
+
+*Before any rebalance: the existing `drill7` gives set 2 an all-zero range and all 350 files are on set 1, while `drill7-newdir`, created after the expansion, is split in half with 45 and 55 files.*
+
+![First rebalance with skipped files](screenshots/20-drill7-rebalance-skipped.png)
+
+*The first rebalance reports `completed` with 0 failures, but 105, 108 and 107 files skipped.*
+
+![Layouts after the first rebalance](screenshots/21-drill7-layout-after-rebalance.png)
+
+*After the first rebalance, `drill7`'s layout is split and carries commit hash `570942e4`, yet all 350 files are still on set 1.*
+
+![The skip reason and a link file](screenshots/22-drill7-skip-and-link-file.png)
+
+*The rebalance log's free-space skip for `drill7/f3.bin`, and the zero-byte `---------T` link file left on set 2, pointing to `gv0-replicate-0`.*
+
+![Forced rebalance completed](screenshots/23-drill7-rebalance-force-completed.png)
+
+*`rebalance start force`: 105, 127 and 107 files moved, 0 skipped, 0 failures.*
+
+![Layouts and file counts after the forced rebalance](screenshots/24-drill7-layout-after-force.png)
+
+*After the forced rebalance: commit hash `57096e02`, `drill7` at 177 and 173 files per set, and no link files left.*
+
+![File placement seen from the client](screenshots/25-drill7-client-placement.png)
+
+*From the client, `pathinfo` places `f3.bin` on set 2 and `f1.bin` on set 1, each with its three bricks, and `df` reports 16G.*
+
+![Per-set digests on the three servers](screenshots/26-drill7-set-digests.png)
+
+*`drill7` per set on all three servers: set 1 holds 177 files and set 2 holds 173, and each set's digest is identical on every server.*
+
 ## Known limitations
 
 - Everything runs on one physical machine with shared storage and virtual networking. Latency and throughput numbers are only meaningful relative to each other, not as absolute figures.
@@ -361,11 +421,10 @@ Raw command output and log excerpts from the drills are in [docs/evidence](docs/
 
 ## Future improvements
 
-1. Add bricks, convert to distributed-replicated, rebalance, and inspect the hash layout.
-2. TLS, `auth.allow`, and Prometheus metrics with alerts on heal backlog and brick state.
-3. `fio` baseline with fixed profiles, reused unchanged in phase 2.
-4. Ansible role that rebuilds the whole lab idempotently.
-5. Phase 2: CephFS on the same VMs, the same failure drills, and a written comparison.
+1. TLS, `auth.allow`, and Prometheus metrics with alerts on heal backlog and brick state.
+2. `fio` baseline with fixed profiles, reused unchanged in phase 2.
+3. Ansible role that rebuilds the whole lab idempotently.
+4. Phase 2: CephFS on the same VMs, the same failure drills, and a written comparison.
 
 ## References
 
@@ -379,4 +438,4 @@ Raw command output and log excerpts from the drills are in [docs/evidence](docs/
 
 ## TL;DR
 
-Three VMs form a replica 3 GlusterFS volume (`gv0`) on LVM thin + XFS bricks, mounted from a fourth VM with the FUSE client. Six drills were run and recorded: a graceful node loss heals by itself, a hard failure stalls clients until `network.ping-timeout` expires, losing two of three nodes makes the volume unusable on the tested version, a split-brain needs a deliberate human choice of source brick, a destroyed brick rebuilt with `reset-brick` comes back byte-identical after a manual `heal full`, and a brick moved to a new disk with `replace-brick` heals by itself in about 36 seconds with no stall for a writing client. Evidence is in `docs/evidence`, procedures in `docs/`. Not done yet: TLS, monitoring, benchmarks, Ansible, and the CephFS comparison.
+Three VMs form a GlusterFS volume (`gv0`) on LVM thin + XFS bricks, replica 3 and since expanded to two replica sets (2 x 3),, mounted from a fourth VM with the FUSE client. Seven drills were run and recorded: a graceful node loss heals by itself, a hard failure stalls clients until `network.ping-timeout` expires, losing two of three nodes makes the volume unusable on the tested version, a split-brain needs a deliberate human choice of source brick, a destroyed brick rebuilt with `reset-brick` comes back byte-identical after a manual `heal full`, and a brick moved to a new disk with `replace-brick` heals by itself in about 36 seconds with no stall for a writing client, and an expansion to 2 x 3 needed a forced rebalance after the first one skipped 320 files on its free-space check. Evidence is in `docs/evidence`, procedures in `docs/`. Not done yet: TLS, monitoring, benchmarks, Ansible, and the CephFS comparison.

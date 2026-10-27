@@ -1,0 +1,106 @@
+# Drill 7: expansion to 2 x 3 and rebalance, session log from gluster3
+# Captured 2026-10-27 with script(1), times UTC. Private address masked.
+# Cleaned for reading: terminal control codes removed, and the duplicate echoes the
+# terminal draws for pasted commands removed. Output is unchanged.
+# The recording lost 2 command line(s), restored here from cmd_history.log and the raw
+# recording: gluster volume info gv0 | grep 'Volume ID', and umount /data/glusterfs/brick1.
+# gluster3 captured the old brick's volume ID and the refused add-brick, wiped that brick, and ran the successful add-brick.
+#
+
+Script started on 2026-10-27 22:26:19+00:00 [TERM="xterm-256color" TTY="/dev/pts/0" COLUMNS="162" LINES="48"]
+root@gluster3:~# ./scripts/compare-bricks.sh /data/glusterfs/brick2/vol/drill7    # gluster3
+host:   gluster3
+path:   /data/glusterfs/brick2/vol/drill7
+files:  300
+digest: 58adce454feaa891d260f452708d4f8d667ead8b923c3631d119a70ba5d6ff57
+root@gluster3:~# clear
+root@gluster3:~# getfattr -n trusted.glusterfs.volume-id -e hex /data/glusterfs/brick1/vol
+getfattr: Removing leading '/' from absolute path names
+# file: data/glusterfs/brick1/vol
+trusted.glusterfs.volume-id=0x91f1a4916fdf4b32b8c8456973a6b649
+
+root@gluster3:~# gluster volume info gv0 | grep 'Volume ID'
+Volume ID: 91f1a491-6fdf-4b32-b8c8-456973a6b649
+root@gluster3:~# gluster volume add-brick gv0 \
+  gluster1:/data/glusterfs/brick2/vol \
+  gluster2:/data/glusterfs/brick2/vol \
+  gluster3:/data/glusterfs/brick1/vol
+volume add-brick: failed: /data/glusterfs/brick1/vol is already part of a volume
+root@gluster3:~# clear
+root@gluster3:~# umount /data/glusterfs/brick1
+root@gluster3:~# mkfs.xfs -f -i size=512 /dev/vg_gluster/brick1
+meta-data=/dev/vg_gluster/brick1 isize=512    agcount=8, agsize=262144 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1    bigtime=1 inobtcount=1 nrext64=0
+data     =                       bsize=4096   blocks=2097152, imaxpct=25
+         =                       sunit=16     swidth=16 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=16384, version=2
+         =                       sectsz=512   sunit=16 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+Discarding blocks...Done.
+root@gluster3:~# mount /data/glusterfs/brick1
+root@gluster3:~# mkdir /data/glusterfs/brick1/vol
+root@gluster3:~# restorecon -Rv /data/glusterfs/brick1
+Relabeled /data/glusterfs/brick1 from system_u:object_r:unlabeled_t:s0 to system_u:object_r:glusterd_brick_t:s0
+Relabeled /data/glusterfs/brick1/vol from unconfined_u:object_r:unlabeled_t:s0 to unconfined_u:object_r:glusterd_brick_t:s0
+root@gluster3:~# findmnt /data/glusterfs/brick1
+TARGET                 SOURCE                        FSTYPE OPTIONS
+/data/glusterfs/brick1 /dev/mapper/vg_gluster-brick1 xfs    rw,noatime,seclabel,attr2,inode64,logbufs=8,logbsize=64k,sunit=128,swidth=128,noquota
+root@gluster3:~# ls -laZ /data/glusterfs/brick1/vol
+total 0
+drwxr-xr-x. 2 root root unconfined_u:object_r:glusterd_brick_t:s0  6 Oct 27 22:35 .
+drwxr-xr-x. 3 root root system_u:object_r:glusterd_brick_t:s0     17 Oct 27 22:35 ..
+root@gluster3:~# clear
+root@gluster3:~# gluster volume add-brick gv0 \
+  gluster1:/data/glusterfs/brick2/vol \
+  gluster2:/data/glusterfs/brick2/vol \
+  gluster3:/data/glusterfs/brick1/vol
+gluster volume info gv0
+volume add-brick: success
+
+Volume Name: gv0
+Type: Distributed-Replicate
+Volume ID: 91f1a491-6fdf-4b32-b8c8-456973a6b649
+Status: Started
+Snapshot Count: 0
+Number of Bricks: 2 x 3 = 6
+Transport-type: tcp
+Bricks:
+Brick1: gluster1:/data/glusterfs/brick1/vol
+Brick2: gluster2:/data/glusterfs/brick1/vol
+Brick3: gluster3:/data/glusterfs/brick2/vol
+Brick4: gluster1:/data/glusterfs/brick2/vol
+Brick5: gluster2:/data/glusterfs/brick2/vol
+Brick6: gluster3:/data/glusterfs/brick1/vol
+Options Reconfigured:
+cluster.quorum-type: auto
+performance.client-io-threads: off
+transport.address-family: inet
+storage.fips-mode-rchecksum: on
+cluster.granular-entry-heal: on
+root@gluster3:~# grep '2026-10-27 22:[234]' /var/log/glusterfs/cmd_history.log
+grep -l '2026-10-27 22:40:5[89]\|2026-10-27 22:41:0[01]' /var/log/glusterfs/*.log /var/log/glusterfs/bricks/*.log
+gluster volume rebalance gv0 status
+mount -t fuse.glusterfs
+[2026-10-27 22:34:26.406026 +0000]  : volume add-brick gv0 gluster1:/data/glusterfs/brick2/vol gluster2:/data/glusterfs/brick2/vol gluster3:/data/glusterfs/brick1/vol : FAILED : /data/glusterfs/brick1/vol is already part of a volume
+[2026-10-27 22:36:07.358851 +0000]  : volume add-brick gv0 gluster1:/data/glusterfs/brick2/vol gluster2:/data/glusterfs/brick2/vol gluster3:/data/glusterfs/brick1/vol : SUCCESS
+/var/log/glusterfs/glusterd.log
+/var/log/glusterfs/gv0-rebalance.log
+/var/log/glusterfs/bricks/data-glusterfs-brick1-vol.log
+/var/log/glusterfs/bricks/data-glusterfs-brick2-vol.log
+                                    Node Rebalanced-files          size       scanned      failures       skipped               status  run time in h:m:s
+                               ---------      -----------   -----------   -----------   -----------   -----------         ------------     --------------
+                                gluster1              281         5.5MB          2630             0           105            completed        0:00:22
+                                gluster2              315       305.4MB          2632             0           108            completed        0:00:22
+                               localhost              312        58.6MB          2630             0           107            completed        0:00:22
+volume rebalance: gv0: success
+root@gluster3:~# awk '$0 >= "[2026-10-27 22:40"' /var/log/glusterfs/gv0-rebalance.log > ~/drill7-rebalance.log
+grep -c 'lower disk space' ~/drill7-rebalance.log
+grep 'lower disk space' ~/drill7-rebalance.log | grep -m1 drill7 | cut -c1-400
+107
+[2026-10-27 22:40:59.532021 +0000] W [MSGID: 109023] [dht-rebalance.c:889:__dht_check_free_space] 0-gv0-dht: data movement of file {blocks:8 name:(/drill7/f5.bin)} would result in dst node (gv0-replicate-1:15522720) having lower disk space than the source node (gv0-replicate-0:16040816).Skipping file.
+root@gluster3:~# grep -E 'completed migration of /drill3/f17\.txt |completed migration of /drill6/big\.bin ' /var/log/glusterfs/gv0-rebalance.log | cut -c1-260
+root@gluster3:~# exit
+Script done on 2026-10-27 23:25:13+00:00 [COMMAND_EXIT_CODE="0"]

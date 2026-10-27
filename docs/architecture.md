@@ -8,9 +8,10 @@ This document explains the components of the lab and how data and control traffi
 |---|---|---|
 | `glusterd` | gluster1, gluster2, gluster3 | Management daemon. Holds pool and volume configuration, starts brick processes, answers CLI commands. Listens on 24007/tcp. |
 | `glusterfsd` (brick process) | gluster1, gluster2, gluster3 | One per brick. Serves file operations for that brick on its own port. |
-| Brick | gluster1, gluster2, gluster3 | A directory on a local XFS filesystem: `/data/glusterfs/brick1/vol`, except on gluster3, where milestone 2b moved it to `/data/glusterfs/brick2/vol` on a second disk. |
+| Brick | gluster1, gluster2, gluster3 | A directory on a local XFS filesystem, two per server since milestone 2c: `/data/glusterfs/brick1/vol` on the first data disk and `/data/glusterfs/brick2/vol` on the second. |
+| Replica set | across the three servers | Three bricks, one per server, holding three copies of each file. `gv0` has two: set 1 is `brick1` on gluster1 and gluster2 and `brick2` on gluster3; set 2 is the other brick on each server. |
 | Self-heal daemon | gluster1, gluster2, gluster3 | Finds files that a brick missed and copies them from a good replica. |
-| FUSE client | gluster4 | Mounts `gv0`. Fetches the volume description, then talks to every brick directly and performs the replication itself. |
+| FUSE client | gluster4 | Mounts `gv0`. Fetches the volume description, then talks to every brick directly, chooses each file's replica set (distribution) and writes it to that set's three bricks (replication). |
 
 ## Topology
 
@@ -19,31 +20,37 @@ flowchart LR
     subgraph clientvm["Client VM"]
         C["gluster4<br/>FUSE client<br/>mounted at /mnt/gv0"]
     end
-    subgraph pool["Trusted storage pool: volume gv0, replica 3"]
+    subgraph pool["Trusted storage pool: volume gv0, distributed-replicated 2 x 3"]
         subgraph s1["gluster1"]
             G1["glusterd"]
-            B1["brick1<br/>XFS on LVM thin"]
+            B1["brick1: set 1"]
+            B4["brick2: set 2"]
         end
         subgraph s2["gluster2"]
             G2["glusterd"]
-            B2["brick1<br/>XFS on LVM thin"]
+            B2["brick1: set 1"]
+            B5["brick2: set 2"]
         end
         subgraph s3["gluster3"]
             G3["glusterd"]
-            B3["brick2<br/>XFS on LVM thin<br/>second disk, since milestone 2b"]
+            B3["brick2: set 1"]
+            B6["brick1: set 2"]
         end
     end
     C -->|"24007/tcp: fetch volfile at mount"| G1
-    C -->|"brick port: file operations"| B1
-    C -->|"brick port: file operations"| B2
-    C -->|"brick port: file operations"| B3
+    C -->|"brick ports: files hashed to set 1"| B1
+    C -->|"brick ports: files hashed to set 1"| B2
+    C -->|"brick ports: files hashed to set 1"| B3
+    C -->|"brick ports: files hashed to set 2"| B4
+    C -->|"brick ports: files hashed to set 2"| B5
+    C -->|"brick ports: files hashed to set 2"| B6
     G1 <-->|"24007/tcp"| G2
     G2 <-->|"24007/tcp"| G3
     G1 <-->|"24007/tcp"| G3
 ```
 
 Control plane: `glusterd` to `glusterd` on 24007/tcp, and the client's one-time volfile fetch.
-Data plane: client directly to each brick process. Brick ports are allocated per brick starting at 49152 by default, which is why the predefined `glusterfs` firewalld service opens a range.
+Data plane: client directly to each brick process. Each brick is XFS on an LVM thin volume. The client's distribute layer picks a file's replica set from a hash of its name and the directory's layout (see [expansion.md](expansion.md)), and the replicate layer writes it to that set's three bricks. Brick ports are allocated per brick starting at 49152 by default, which is why the predefined `glusterfs` firewalld service opens a range.
 
 The client names `gluster1` at mount time, but that is only used to download the volfile. `backup-volfile-servers=gluster2:gluster3` lets the mount succeed if gluster1 is down at that moment.
 
@@ -72,7 +79,7 @@ sequenceDiagram
     AFR-->>App: write complete
 ```
 
-AFR (Automatic File Replication) is the replication layer inside the client. If a brick does not acknowledge, the pending marker for it is not cleared on the bricks that did. Those `trusted.afr.gv0-client-N` attributes are the self-heal to-do list. Brick index N follows the order in `gluster volume create`: client-0 is gluster1, client-1 is gluster2, client-2 is gluster3.
+AFR (Automatic File Replication) is the replication layer inside the client. If a brick does not acknowledge, the pending marker for it is not cleared on the bricks that did. Those `trusted.afr.gv0-client-N` attributes are the self-heal to-do list. Brick index N follows the brick order in `gluster volume info`: client-0 to client-2 are set 1 on gluster1, gluster2 and gluster3, and client-3 to client-5 are set 2 in the same order. The write path below shows one set; a file only ever goes to the three bricks of its own set.
 
 ## Availability states observed
 

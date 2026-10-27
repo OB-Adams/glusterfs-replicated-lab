@@ -1,6 +1,6 @@
 # Brick replacement
 
-Milestone 2, steps 2a and 2b. In 2a, the brick on `gluster3` is destroyed, rebuilt at the same path, re-admitted to the volume with `reset-brick`, and repaired by the self-heal daemon. In 2b, the same brick is moved to a new disk at a different path with `replace-brick` while a client keeps writing. Step 2c (expansion and rebalance) comes next. See [milestones.md](milestones.md).
+Milestone 2, steps 2a and 2b. In 2a, the brick on `gluster3` is destroyed, rebuilt at the same path, re-admitted to the volume with `reset-brick`, and repaired by the self-heal daemon. In 2b, the same brick is moved to a new disk at a different path with `replace-brick` while a client keeps writing. Step 2c (expansion and rebalance) is in [expansion.md](expansion.md). See [milestones.md](milestones.md).
 
 ## Concepts
 

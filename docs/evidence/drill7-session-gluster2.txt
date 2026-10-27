@@ -1,0 +1,246 @@
+# Drill 7: expansion to 2 x 3 and rebalance, session log from gluster2
+# Captured 2026-10-27 with script(1), times UTC. Private address masked.
+# Cleaned for reading: terminal control codes removed, and the duplicate echoes the
+# terminal draws for pasted commands removed. Output is unchanged.
+# gluster2 built its new brick, captured the free-space skip and a link file, and listed what the forced rebalance moved.
+#
+
+Script started on 2026-10-27 22:26:17+00:00 [TERM="xterm-256color" TTY="/dev/pts/0" COLUMNS="162" LINES="48"]
+root@gluster2:~# ./scripts/compare-bricks.sh /data/glusterfs/brick1/vol/drill7
+host:   gluster2
+path:   /data/glusterfs/brick1/vol/drill7
+files:  300
+digest: 58adce454feaa891d260f452708d4f8d667ead8b923c3631d119a70ba5d6ff57
+root@gluster2:~# parted -s /dev/vdc mklabel gpt mkpart brick2 0% 100% set 1 lvm on
+pvcreate /dev/vdc1
+vgcreate vg_gluster2 /dev/vdc1
+lvcreate -L 9G --thinpool thinpool vg_gluster2
+lvcreate -V 8G --thin -n brick2 vg_gluster2/thinpool
+mkfs.xfs -i size=512 /dev/vg_gluster2/brick2
+mkdir -p /data/glusterfs/brick2
+echo '/dev/vg_gluster2/brick2 /data/glusterfs/brick2 xfs defaults,noatime 0 0' >> /etc/fstab
+systemctl daemon-reload
+mount /data/glusterfs/brick2
+mkdir /data/glusterfs/brick2/vol
+restorecon -Rv /data/glusterfs/brick2
+findmnt /data/glusterfs/brick2
+ls -laZ /data/glusterfs/brick2/vol
+  Physical volume "/dev/vdc1" successfully created.
+  Volume group "vg_gluster2" successfully created
+  Thin pool volume with chunk size 64.00 KiB can address at most <15.88 TiB of data.
+  Logical volume "thinpool" created.
+  Logical volume "brick2" created.
+meta-data=/dev/vg_gluster2/brick2 isize=512    agcount=8, agsize=262144 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1    bigtime=1 inobtcount=1 nrext64=0
+data     =                       bsize=4096   blocks=2097152, imaxpct=25
+         =                       sunit=16     swidth=16 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=16384, version=2
+         =                       sectsz=512   sunit=16 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+Discarding blocks...Done.
+Relabeled /data/glusterfs/brick2 from system_u:object_r:unlabeled_t:s0 to system_u:object_r:glusterd_brick_t:s0
+Relabeled /data/glusterfs/brick2/vol from unconfined_u:object_r:unlabeled_t:s0 to unconfined_u:object_r:glusterd_brick_t:s0
+TARGET                 SOURCE                         FSTYPE OPTIONS
+/data/glusterfs/brick2 /dev/mapper/vg_gluster2-brick2 xfs    rw,noatime,seclabel,attr2,inode64,logbufs=8,logbsize=64k,sunit=128,swidth=128,noquota
+total 0
+drwxr-xr-x. 2 root root unconfined_u:object_r:glusterd_brick_t:s0  6 Oct 27 22:32 .
+drwxr-xr-x. 3 root root system_u:object_r:glusterd_brick_t:s0     17 Oct 27 22:32 ..
+root@gluster2:~# grep '2026-10-27 22:[234]' /var/log/glusterfs/cmd_history.log
+grep -l '2026-10-27 22:40:5[89]\|2026-10-27 22:41:0[01]' /var/log/glusterfs/*.log /var/log/glusterfs/bricks/*.log
+gluster volume rebalance gv0 status
+mount -t fuse.glusterfs
+/var/log/glusterfs/glusterd.log
+/var/log/glusterfs/gv0-rebalance.log
+/var/log/glusterfs/bricks/data-glusterfs-brick1-vol.log
+/var/log/glusterfs/bricks/data-glusterfs-brick2-vol.log
+                                    Node Rebalanced-files          size       scanned      failures       skipped               status  run time in h:m:s
+                               ---------      -----------   -----------   -----------   -----------   -----------         ------------     --------------
+                                gluster1              281         5.5MB          2630             0           105            completed        0:00:22
+                                gluster3              312        58.6MB          2630             0           107            completed        0:00:22
+                               localhost              315       305.4MB          2632             0           108            completed        0:00:22
+volume rebalance: gv0: success
+root@gluster2:~# awk '$0 >= "[2026-10-27 22:40"' /var/log/glusterfs/gv0-rebalance.log > ~/drill7-rebalance.log
+grep -c 'lower disk space' ~/drill7-rebalance.log
+grep 'lower disk space' ~/drill7-rebalance.log | grep -m1 drill7 | cut -c1-400
+108
+[2026-10-27 22:40:59.521246 +0000] W [MSGID: 109023] [dht-rebalance.c:889:__dht_check_free_space] 0-gv0-dht: data movement of file {blocks:8 name:(/drill7/f3.bin)} would result in dst node (gv0-replicate-1:15522728) having lower disk space than the source node (gv0-replicate-0:16040816).Skipping file.
+root@gluster2:~# clear
+root@gluster2:~# grep 'lower disk space' ~/drill7-rebalance.log | grep -m1 drill7
+[2026-10-27 22:40:59.521246 +0000] W [MSGID: 109023] [dht-rebalance.c:889:__dht_check_free_space] 0-gv0-dht: data movement of file {blocks:8 name:(/drill7/f3.bin)} would result in dst node (gv0-replicate-1:15522728) having lower disk space than the source node (gv0-replicate-0:16040816).Skipping file.
+root@gluster2:~# ls -l /data/glusterfs/brick2/vol/drill7/f3.bin
+---------T. 2 root root 0 Oct 27 22:40 /data/glusterfs/brick2/vol/drill7/f3.bin
+root@gluster2:~# getfattr -n trusted.glusterfs.dht.linkto -e text /data/glusterfs/brick2/vol/drill7/f3.bin
+getfattr: Removing leading '/' from absolute path names
+# file: data/glusterfs/brick2/vol/drill7/f3.bin
+trusted.glusterfs.dht.linkto="gv0-replicate-0"
+
+root@gluster2:~# awk '$0 >= "[2026-10-27 23:0"' /var/log/glusterfs/gv0-rebalance.log | grep -i 'completed migration' | grep -v '/drill7/' | cut -c1-300
+[2026-10-27 23:03:39.285839 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f8.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:39.324235 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f10.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:39.370188 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f12.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:39.423018 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f18.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:39.453036 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f17.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.489529 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f19.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.523991 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f22.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.558970 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f23.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.616519 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f25.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.626230 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f37.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:39.680937 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f27.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.691906 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f32.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.767765 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f33.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.773743 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f45.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:39.881412 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f42.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.906710 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f44.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.967095 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f46.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.978801 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f50.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:40.635669 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f63.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:40.734405 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f66.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:40.851364 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f67.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:40.960989 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f68.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:41.062257 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f72.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:41.211696 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f78.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:41.360413 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f86.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:41.523158 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f100.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:41.682062 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f120.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:41.937597 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6/big.bin from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:41.991310 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f124.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.050227 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f126.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.106924 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f128.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.181218 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f130.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.248201 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f133.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.346607 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f145.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.369248 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f150.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.475301 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f156.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.480528 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f158.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.575419 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f170.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.622144 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f181.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.677128 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f182.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.776064 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f197.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.795948 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f202.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.886981 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f213.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.898699 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f218.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.985821 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f219.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.992216 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f220.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.062195 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f221.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.076534 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f222.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.174676 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f224.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.223944 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f240.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.281506 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f250.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.340206 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f263.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.382171 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f274.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.437144 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f281.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.490619 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f284.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.547718 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f292.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.622079 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f311.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.646361 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f314.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.694896 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f315.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.727308 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f322.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.808614 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f336.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.841898 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f340.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.936645 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f351.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.967604 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f353.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:44.083686 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f363.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:44.090167 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f364.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:44.259545 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f367.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:44.284021 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f372.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:44.481000 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f386.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:44.484279 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f387.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:44.669581 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f389.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:46.491027 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /file8 from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:46.492493 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /file20 from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:46.492507 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /after-recovery from subvolume gv0-replicate-0 to gv0-replicate-1
+root@gluster2:~# awk '$0 >= "[2026-10-27 23:0"' /var/log/glusterfs/gv0-rebalance.log > ~/drill7-rebalance-force.log
+grep -ci 'completed migration' ~/drill7-rebalance-force.log
+grep -i 'completed migration' ~/drill7-rebalance-force.log | grep -c '/drill7/'
+grep -i 'completed migration' ~/drill7-rebalance-force.log | grep -v '/drill7/' | cut -c1-300
+127
+53
+[2026-10-27 23:03:39.285839 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f8.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:39.324235 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f10.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:39.370188 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f12.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:39.423018 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f18.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:39.453036 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f17.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.489529 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f19.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.523991 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f22.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.558970 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f23.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.616519 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f25.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.626230 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f37.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:39.680937 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f27.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.691906 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f32.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.767765 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f33.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.773743 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f45.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:39.881412 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f42.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.906710 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f44.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.967095 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f46.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:39.978801 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f50.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:40.635669 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f63.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:40.734405 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f66.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:40.851364 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f67.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:40.960989 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f68.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:41.062257 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f72.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:41.211696 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f78.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:41.360413 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f86.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:41.523158 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f100.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:41.682062 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f120.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:41.937597 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6/big.bin from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:41.991310 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f124.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.050227 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f126.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.106924 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f128.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.181218 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f130.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.248201 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f133.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.346607 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f145.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.369248 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f150.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.475301 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f156.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.480528 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f158.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.575419 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f170.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.622144 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f181.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.677128 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f182.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.776064 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f197.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.795948 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f202.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.886981 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f213.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.898699 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f218.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.985821 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f219.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:42.992216 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f220.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.062195 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f221.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.076534 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f222.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.174676 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f224.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.223944 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f240.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.281506 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f250.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.340206 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f263.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.382171 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f274.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.437144 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f281.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.490619 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f284.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.547718 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f292.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.622079 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f311.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.646361 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f314.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.694896 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f315.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.727308 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f322.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.808614 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f336.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.841898 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f340.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.936645 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f351.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:43.967604 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f353.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:44.083686 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f363.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:44.090167 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f364.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:44.259545 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f367.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:44.284021 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f372.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:44.481000 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f386.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:44.484279 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f387.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:44.669581 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6-during/f389.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:46.491027 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /file8 from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:46.492493 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /file20 from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:46.492507 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /after-recovery from subvolume gv0-replicate-0 to gv0-replicate-1
+root@gluster2:~# clear
+root@gluster2:~# grep 'Setting layout of /drill3 with' /var/log/glusterfs/gv0-rebalance.log | tail -2 | cut -c1-420
+grep 'Setting layout of /drill6 with' /var/log/glusterfs/gv0-rebalance.log | tail -2 | cut -c1-420
+root@gluster2:~# grep -c 'Setting layout' /var/log/glusterfs/gv0-rebalance.log
+0
+root@gluster2:~# grep -E 'completed migration of /drill3/f17\.txt |completed migration of /drill6/big\.bin ' /var/log/glusterfs/gv0-rebalance.log | cut -c1-260
+[2026-10-27 22:40:49.070499 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f17.txt from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 22:40:58.627454 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6/big.bin from subvolume gv0-replicate-0 to gv0-replicate-1
+[2026-10-27 23:03:39.453036 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill3/f17.txt from subvolume gv0-replicate-1 to gv0-replicate-0
+[2026-10-27 23:03:41.937597 +0000] I [MSGID: 109022] [dht-rebalance.c:2172:dht_migrate_file] 0-gv0-dht: completed migration of /drill6/big.bin from subvolume gv0-replicate-1 to gv0-replicate-0
+root@gluster2:~# exit
+Script done on 2026-10-27 23:25:11+00:00 [COMMAND_EXIT_CODE="0"]

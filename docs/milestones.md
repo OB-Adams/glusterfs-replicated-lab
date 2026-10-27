@@ -5,7 +5,7 @@ Status values: Planned, In progress, Blocked, Complete. A milestone is marked Co
 | # | Milestone | Status |
 |---|---|---|
 | 1 | Replicated cluster and failure drills | Complete |
-| 2 | Brick replacement, expansion and rebalance | In progress |
+| 2 | Brick replacement, expansion and rebalance | Complete |
 | 3 | Security and monitoring | Planned |
 | 4 | Benchmark baseline | Planned |
 | 5 | Ansible automation | Planned |
@@ -33,7 +33,7 @@ Status values: Planned, In progress, Blocked, Complete. A milestone is marked Co
 
 **Completion criteria.** Documentation committed, evidence archived, screenshots captured and embedded in the README.
 
-## Milestone 2: brick replacement, expansion and rebalance (in progress)
+## Milestone 2: brick replacement, expansion and rebalance
 
 **Goal.** Replace a failed brick and heal it fully, then add a second brick per server to make the volume distributed-replicated and rebalance it.
 
@@ -41,7 +41,7 @@ Status values: Planned, In progress, Blocked, Complete. A milestone is marked Co
 |---|---|---|
 | 2a | Rebuild a destroyed brick at the same path with `reset-brick` | Complete |
 | 2b | Replace a brick at a different path or host with `replace-brick` | Complete |
-| 2c | Add a second brick per server (2 x 3) and rebalance | Planned |
+| 2c | Add a second brick per server (2 x 3) and rebalance | Complete |
 
 **Acceptance criteria.**
 
@@ -52,6 +52,8 @@ Status values: Planned, In progress, Blocked, Complete. A milestone is marked Co
 **2a result (2026-10-27).** Met. Both `reset-brick` steps and `heal full` returned `SUCCESS`. The heal did not start in the two minutes between the commit and the command; once issued, the full sweep took about 26 seconds. Both directories came back with matching file counts and digests on all three servers, including the rebuilt one. Full write-up in [brick-replacement.md](brick-replacement.md).
 
 **2b result (2026-10-27).** Met. `gluster3`'s brick was moved from `/data/glusterfs/brick1/vol` to `/data/glusterfs/brick2/vol` on a new 10 GB disk with `replace-brick ... commit force`, while a client wrote 400 files. The heal started by itself 20 ms after the new brick connected, with no heal command, and the self-heal daemon finished about 36 seconds later. All four test directories came back with matching file counts and digests on all three servers. The client had no failed writes and no stall: the slowest of the 400 writes took 0.028 s. The old brick was left with its data and volume ID intact. Full write-up in [brick-replacement.md](brick-replacement.md#2b-move-to-a-new-disk-with-replace-brick).
+
+**2c result (2026-10-27).** Met. `add-brick` first refused `gluster3`'s old brick because it still carried `gv0`'s volume ID; after the brick was wiped, the volume became `Distributed-Replicate`, `2 x 3 = 6`. Before any rebalance, the existing `drill7` directory gave the new set no range and new files in it stayed on set 1, while a directory created after the expansion was split 45/55. The first rebalance completed but skipped 320 files on the free-space rule (`__dht_check_free_space`), leaving 173 of `drill7`'s files behind link files. `rebalance start force` then moved every file to its hashed set, giving `drill7` 177 and 173 files per set with no link files, and also moved 13 files from earlier drills back to set 1. The original files' digest from the client was unchanged, and each set's three copies matched on all three servers. Full write-up in [expansion.md](expansion.md).
 
 ## Milestone 3: security and monitoring (planned)
 
