@@ -4,6 +4,7 @@
 #   sudo awk -v t='[2026-10-27 19:23' '$0 >= t' <log> | grep -iE '<pattern>'
 # gv0-client-2 is the third brick of the replica set: gluster3's brick, on brick2 after the commit.
 # The commit ran on gluster3 at 19:28:10.
+# Private address masked.
 
 ## gluster4: client mount log, /var/log/glusterfs/mnt-gv0.log
 # pattern: 'graph|client-2'
@@ -11,7 +12,7 @@
 # /data/glusterfs/brick2/vol at 19:28:13.7, and the client switches to it at 19:28:14.1.
 # The last line is written out of order by the old graph as it is torn down.
 
-[2026-10-27 19:28:10.506431 +0000] W [socket.c:751:__socket_rwv] 0-gv0-client-2: readv on 192.168.0.163:59702 failed (No data available)
+[2026-10-27 19:28:10.506431 +0000] W [socket.c:751:__socket_rwv] 0-gv0-client-2: readv on 192.168.x.x:59702 failed (No data available)
 [2026-10-27 19:28:10.506565 +0000] I [MSGID: 114018] [client.c:2242:client_rpc_notify] 0-gv0-client-2: disconnected from client, process will keep trying to connect glusterd until brick's port is available [{conn-name=gv0-client-2}] 
 [2026-10-27 19:28:13.513688 +0000] E [MSGID: 114058] [client-handshake.c:946:client_query_portmap_cbk] 0-gv0-client-2: failed to get the port number for remote subvolume. Please run gluster volume status on server to see if brick process is running [] 
 [2026-10-27 19:28:13.718892 +0000] I [MSGID: 0] [options.c:1384:xlator_option_reconf_time] 0-gv0-client-2: option ping-timeout using set value 42 
@@ -30,7 +31,7 @@
 # pattern: 'client-2|sweep|crawl|Completed|selfheal'
 # Healed the root directory's metadata, then nothing further.
 
-[2026-10-27 19:28:10.500767 +0000] W [socket.c:751:__socket_rwv] 0-gv0-client-2: readv on 192.168.0.163:59702 failed (No data available)
+[2026-10-27 19:28:10.500767 +0000] W [socket.c:751:__socket_rwv] 0-gv0-client-2: readv on 192.168.x.x:59702 failed (No data available)
 [2026-10-27 19:28:10.500838 +0000] I [MSGID: 114018] [client.c:2242:client_rpc_notify] 0-gv0-client-2: disconnected from client, process will keep trying to connect glusterd until brick's port is available [{conn-name=gv0-client-2}] 
 [2026-10-27 19:28:13.719785 +0000] I [MSGID: 114020] [client.c:2344:notify] 0-gv0-client-2: parent translators are ready, attempting connect on transport [] 
 [2026-10-27 19:28:13.724962 +0000] I [rpc-clnt.c:1899:rpc_clnt_reconfig] 0-gv0-client-2: changing port to 50497 (from 0)
@@ -73,7 +74,7 @@
 #   lookup warnings (No such file)   1857
 
 ### first 50 lines
-[2026-10-27 19:28:10.505634 +0000] W [socket.c:751:__socket_rwv] 0-gv0-client-2: readv on 192.168.0.163:59702 failed (No data available)
+[2026-10-27 19:28:10.505634 +0000] W [socket.c:751:__socket_rwv] 0-gv0-client-2: readv on 192.168.x.x:59702 failed (No data available)
 [2026-10-27 19:28:10.505715 +0000] I [MSGID: 114018] [client.c:2242:client_rpc_notify] 0-gv0-client-2: disconnected from client, process will keep trying to connect glusterd until brick's port is available [{conn-name=gv0-client-2}] 
 [2026-10-27 19:28:13.723596 +0000] I [MSGID: 114020] [client.c:2344:notify] 0-gv0-client-2: parent translators are ready, attempting connect on transport [] 
 [2026-10-27 19:28:13.729052 +0000] I [rpc-clnt.c:1899:rpc_clnt_reconfig] 0-gv0-client-2: changing port to 50497 (from 0)
