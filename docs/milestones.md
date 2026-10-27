@@ -39,9 +39,8 @@ Status values: Planned, In progress, Blocked, Complete. A milestone is marked Co
 - Why `latest-mtime` reported no difference in drill 4 is unexplained.
 - Behaviour was observed on one OS release and one Gluster version only.
 - SELinux enforcing and firewalld running were configured as documented, but the output of `getenforce` and `firewall-cmd --state` was not recorded.
-- Screenshots have not been captured yet.
 
-**Completion criteria.** Documentation committed, evidence archived, screenshot checklist ready. Screenshots to be added as a follow-up commit.
+**Completion criteria.** Documentation committed, evidence archived, screenshots captured and embedded in the README.
 
 ## Milestone 2: brick replacement, expansion and rebalance (planned)
 
