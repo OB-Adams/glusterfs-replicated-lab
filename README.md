@@ -14,7 +14,8 @@ This is phase 1 of a storage study. Phase 2 will rebuild the same VMs as a CephF
 | Milestone 2a: brick rebuild with `reset-brick` | Complete |
 | Milestone 2b: `replace-brick` to a new disk | Complete |
 | Milestone 2c: expansion to 2 x 3 and rebalance | Complete |
-| TLS, access control and monitoring | Planned |
+| Milestone 3a: `auth.allow` and mutual TLS | Complete |
+| Milestone 3b: monitoring and alerts | Planned |
 | `fio` baseline | Planned |
 | Ansible automation of the build | Planned |
 | CephFS phase and comparison | Planned |
@@ -41,6 +42,7 @@ Upstream GlusterFS development has slowed and Red Hat's commercial Gluster Stora
 - A brick rebuild drill: the brick on one server destroyed, rebuilt empty at the same path, re-admitted with `reset-brick`, and repaired by the self-heal daemon.
 - A brick move drill: the brick on one server moved to a new disk with `replace-brick` while a client keeps writing, then filled by the self-heal daemon.
 - An expansion drill: a second replica set added with `add-brick`, file placement traced through the hash layout on the bricks, a rebalance that skipped files on the free-space rule, and a forced rebalance.
+- Access control and encryption: client addresses restricted with `auth.allow`, and mutual TLS with a lab certificate authority on both the management and data planes, with clients authorised by certificate name.
 - Helper scripts for health checks, latency-measuring writers and brick comparison.
 
 ## Architecture
@@ -99,6 +101,7 @@ glusterfs-replicated-lab/
 │   ├── expansion.md
 │   ├── failure-drills.md
 │   ├── milestones.md
+│   ├── security.md
 │   ├── troubleshooting.md
 │   └── evidence/
 │       ├── drill1-heal-summary.txt
@@ -119,7 +122,8 @@ glusterfs-replicated-lab/
 │       ├── drill7-session-gluster1.txt
 │       ├── drill7-session-gluster2.txt
 │       ├── drill7-session-gluster3.txt
-│       └── drill7-session-gluster4.txt
+│       ├── drill7-session-gluster4.txt
+│       └── drill8-logs.txt
 ├── scripts/
 │   ├── check-cluster.sh
 │   ├── compare-bricks.sh
@@ -153,7 +157,15 @@ glusterfs-replicated-lab/
     ├── 23-drill7-rebalance-force-completed.png
     ├── 24-drill7-layout-after-force.png
     ├── 25-drill7-client-placement.png
-    └── 26-drill7-set-digests.png
+    ├── 26-drill7-set-digests.png
+    ├── 27-drill8-auth-allow-refused.png
+    ├── 28-drill8-certificates.png
+    ├── 29-drill8-tls-enabled.png
+    ├── 30-drill8-tls-on-the-wire.png
+    ├── 31-drill8-no-certificate-refused.png
+    ├── 32-drill8-rogue-certificate-refused.png
+    ├── 33-drill8-wrong-cn-refused.png
+    └── 34-drill8-valid-mount.png
 ```
 
 ## Prerequisites
@@ -192,6 +204,9 @@ The behaviour recorded in the drills applies to this OS release and Gluster vers
 | Second disk, from milestones 2b and 2c | `/dev/vdc1`, volume group `vg_gluster2`, thin pool `thinpool`, thin LV `brick2`, mounted at `/data/glusterfs/brick2` |
 | Replica set 1 | `brick1` on `gluster1` and `gluster2`, `brick2` on `gluster3` |
 | Replica set 2 | `brick2` on `gluster1` and `gluster2`, `brick1` on `gluster3` |
+| TLS files, from milestone 3a | `/etc/pki/tls/glusterfs.key`, `glusterfs.pem` and `glusterfs.ca` on every machine |
+| Management TLS switch | `/var/lib/glusterd/secure-access` on every machine |
+| Access lists | `auth.allow`: the four lab addresses; `auth.ssl-allow`: `gluster1,gluster2,gluster3,gluster4` |
 
 Disk and pool sizes are not fixed by this lab. Size them to your disks, and keep the thin LV's virtual size below the pool size so the pool cannot be overcommitted by accident.
 
@@ -230,7 +245,7 @@ echo "hello gluster" | sudo tee /mnt/gv0/hello.txt
 cat /data/glusterfs/brick1/vol/hello.txt
 ```
 
-The drills in [docs/failure-drills.md](docs/failure-drills.md) and [docs/brick-replacement.md](docs/brick-replacement.md) are the main tests.
+The drills in [docs/failure-drills.md](docs/failure-drills.md), [docs/brick-replacement.md](docs/brick-replacement.md), [docs/expansion.md](docs/expansion.md) and [docs/security.md](docs/security.md) are the main tests.
 
 ## Operational commands
 
@@ -243,7 +258,8 @@ The drills in [docs/failure-drills.md](docs/failure-drills.md) and [docs/brick-r
 ## Security considerations
 
 - SELinux is enforcing and firewalld is on. Only the predefined `glusterfs` firewalld service is opened on the servers.
-- **Not yet configured:** TLS for management and data traffic, and volume access restrictions (`auth.allow`). Traffic between nodes and clients is unencrypted. This is acceptable for an isolated lab and not for anything else.
+- All Gluster traffic uses mutual TLS with a lab certificate authority, on the management plane (`glusterd`, 24007) and the data plane (brick ports). Clients must hold a certificate signed by the lab CA, and their certificate name must be on `auth.ssl-allow`. Client addresses are also restricted with `auth.allow`. Details and the refusal tests are in [docs/security.md](docs/security.md).
+- The lab CA's private key stays on `gluster1` and is not in this repository. The certificates expire on 2027-10-28.
 - Lab commands are run as root or with `sudo` for convenience. A real deployment should separate administrative access.
 - The split-brain drill deliberately disables quorum and self-heal. That configuration is for a throwaway file in a lab and must be reverted afterwards.
 
@@ -258,6 +274,7 @@ Issues actually encountered, with causes and fixes, are in [docs/troubleshooting
 | Write stalls for tens of seconds after a node is force-stopped | Drill 2 |
 | A split-brain file reads normally on a long-lived mount | Drill 4 |
 | Manual heal says `File not in split-brain` | Drill 4 |
+| `glusterd` cannot load its certificate and `volume start` fails after enabling TLS | Drill 8 |
 
 ## Cleanup and recovery
 
@@ -410,18 +427,52 @@ Raw command output and log excerpts from the drills are in [docs/evidence](docs/
 
 *`drill7` per set on all three servers: set 1 holds 177 files and set 2 holds 173, and each set's digest is identical on every server.*
 
+### Drill 8: access control and TLS ([details](docs/security.md))
+
+![Mount refused by auth.allow](screenshots/27-drill8-auth-allow-refused.png)
+
+*With the client's address removed from `auth.allow`, the bricks refuse its mount: `Authentication failed`, then `AUTH_FAILED`.*
+
+![The lab CA and certificates](screenshots/28-drill8-certificates.png)
+
+*Five certificates verify against the lab CA; the self-signed `rogue` certificate fails. Subjects and issuers show who signed each.*
+
+![TLS enabled on the volume](screenshots/29-drill8-tls-enabled.png)
+
+*`client.ssl` and `server.ssl` on, the two allow lists (addresses redacted), the certificate files and `secure-access` in place, and six bricks and three self-heal daemons online.*
+
+![TLS on the management and brick ports](screenshots/30-drill8-tls-on-the-wire.png)
+
+*`openssl s_client` from the client: `glusterd` on 24007 and a brick port both present `gluster1`'s certificate, issued by the lab CA, and it verifies.*
+
+![Mount without a certificate](screenshots/31-drill8-no-certificate-refused.png)
+
+*With no certificate, the client cannot start TLS and fails to fetch the volume file.*
+
+![Mount with a self-signed certificate](screenshots/32-drill8-rogue-certificate-refused.png)
+
+*A self-signed certificate claiming to be `gluster4` is rejected at the handshake: `alert unknown ca`.*
+
+![Mount with a certificate for the wrong name](screenshots/33-drill8-wrong-cn-refused.png)
+
+*A lab-signed certificate for `intruder` passes TLS, then every brick refuses it: `Authentication failed`.*
+
+![Mount with the real certificate](screenshots/34-drill8-valid-mount.png)
+
+*With its own certificate the client mounts over TLS, writes a file, and the `drill7` digest is unchanged.*
+
 ## Known limitations
 
 - Everything runs on one physical machine with shared storage and virtual networking. Latency and throughput numbers are only meaningful relative to each other, not as absolute figures.
 - Each timing measurement in the drills is a single run. They show the effect, not a statistical result.
 - In drill 2, the observed stalls were longer than the configured `network.ping-timeout`. The cause is not established.
 - In drill 3, the documentation describes loss of client quorum as making the replica set read-only. On the tested version the mount became unusable for reads as well. The exact log lines are recorded and the version-specific behaviour has not been investigated further.
-- No TLS, no access restrictions, no monitoring, no automation yet.
+- No monitoring and no automation yet.
 - Only one OS and one Gluster version were tested.
 
 ## Future improvements
 
-1. TLS, `auth.allow`, and Prometheus metrics with alerts on heal backlog and brick state.
+1. Prometheus metrics, a dashboard, and alerts on heal backlog and brick state.
 2. `fio` baseline with fixed profiles, reused unchanged in phase 2.
 3. Ansible role that rebuilds the whole lab idempotently.
 4. Phase 2: CephFS on the same VMs, the same failure drills, and a written comparison.
@@ -438,4 +489,4 @@ Raw command output and log excerpts from the drills are in [docs/evidence](docs/
 
 ## TL;DR
 
-Three VMs form a GlusterFS volume (`gv0`) on LVM thin + XFS bricks, replica 3 and since expanded to two replica sets (2 x 3),, mounted from a fourth VM with the FUSE client. Seven drills were run and recorded: a graceful node loss heals by itself, a hard failure stalls clients until `network.ping-timeout` expires, losing two of three nodes makes the volume unusable on the tested version, a split-brain needs a deliberate human choice of source brick, a destroyed brick rebuilt with `reset-brick` comes back byte-identical after a manual `heal full`, and a brick moved to a new disk with `replace-brick` heals by itself in about 36 seconds with no stall for a writing client, and an expansion to 2 x 3 needed a forced rebalance after the first one skipped 320 files on its free-space check. Evidence is in `docs/evidence`, procedures in `docs/`. Not done yet: TLS, monitoring, benchmarks, Ansible, and the CephFS comparison.
+Three VMs form a GlusterFS volume (`gv0`) on LVM thin + XFS bricks, replica 3 and since expanded to two replica sets (2 x 3), mounted from a fourth VM with the FUSE client. Eight drills were run and recorded: a graceful node loss heals by itself, a hard failure stalls clients until `network.ping-timeout` expires, losing two of three nodes makes the volume unusable on the tested version, a split-brain needs a deliberate human choice of source brick, a destroyed brick rebuilt with `reset-brick` comes back byte-identical after a manual `heal full`, a brick moved to a new disk with `replace-brick` heals by itself in about 36 seconds with no stall for a writing client, an expansion to 2 x 3 needed a forced rebalance after the first one skipped 320 files on its free-space check, and with mutual TLS on, clients with no certificate, a self-signed one, or a certificate for a name not on the allow list are all refused. All traffic is now encrypted. Evidence is in `docs/evidence`, procedures in `docs/`. Not done yet: monitoring, benchmarks, Ansible, and the CephFS comparison.

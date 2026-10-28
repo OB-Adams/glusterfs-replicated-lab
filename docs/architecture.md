@@ -126,6 +126,6 @@ Quorum on prevents this because the minority side refuses writes. The drill disa
 
 | Boundary | Traffic | Control in place | Not yet in place |
 |---|---|---|---|
-| Client to servers | Volfile fetch, file data | firewalld `glusterfs` service on servers | TLS, `auth.allow` |
-| Server to server | Pool management, heal traffic | firewalld `glusterfs` service | TLS |
+| Client to servers | Volfile fetch, file data | firewalld `glusterfs` service on servers; mutual TLS with the lab CA on 24007 and the brick ports; `auth.allow` by address; `auth.ssl-allow` by certificate name ([security.md](security.md)) | |
+| Server to server | Pool management, heal traffic | firewalld `glusterfs` service; mutual TLS with the lab CA; servers authenticate to bricks by certificate name | |
 | Host to guests | SSH for administration | Lab network only | Hardening |

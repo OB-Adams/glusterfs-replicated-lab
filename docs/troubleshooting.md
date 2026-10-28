@@ -56,6 +56,14 @@ Issues that were actually hit during this lab, followed by the general diagnosti
 - **Cause for `latest-mtime`:** not established.
 - **Fix:** choose a source explicitly: `gluster volume heal gv0 split-brain source-brick <host:brick> <file>`.
 
+### `glusterd` cannot load its certificate after TLS is enabled
+
+- **Where:** drill 8.
+- **Symptom:** after `touch /var/lib/glusterd/secure-access` and a `glusterd` restart, peers do not connect and `gluster volume start gv0` fails with `Commit failed on localhost`. `glusterd.log` repeats `could not load our cert at /etc/pki/tls/glusterfs.pem` with `No such file or directory`, and a peer with no certificate to offer causes `no shared cipher`.
+- **Cause:** this build (CentOS Storage SIG, GlusterFS 11.1) reads `glusterfs.key`, `glusterfs.pem` and `glusterfs.ca` from `/etc/pki/tls/`. The files had been installed in `/etc/ssl/`, the path most upstream examples use.
+- **Fix:** move the three files to `/etc/pki/tls/` on every machine, `chmod 600` the key, `restorecon -v /etc/pki/tls/glusterfs.*`, restart `glusterd` on all servers, then start the volume.
+- **Check first:** the `could not load our cert at …` line names the exact path the build reads.
+
 ## Operational note (documented behaviour, not an incident in this lab)
 
 `systemctl stop glusterd` stops only the management daemon. Brick processes (`glusterfsd`) keep serving data. To take a brick out of service, stop its process as well (for example `sudo pkill glusterfsd`) or shut the node down. The drill 4 procedure does both.

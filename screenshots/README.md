@@ -10,6 +10,7 @@ This folder holds screenshots of real terminal output from the lab. Each one is 
 - Check each image for private addresses, tokens or personal information before committing.
 - Use the exact file names below. The main README refers to them.
 - Where a command sequence is long or its output scrolls, the commands may be re-run afterwards in a clean terminal to capture a readable image. Screenshots 09 and 10 were captured that way, so their timestamps and counters differ from the session logs in `../docs/evidence`, which remain the record of the drill itself.
+- Screenshot 29 shows the `auth.allow` value covered by a grey box, because it lists the lab's private addresses. Nothing else in it is changed.
 - Screenshots 13 to 16 come from a repeat of drill 6, run after the recorded run had been reversed, to capture clean images. The repeat skipped the client writer, and a `heal full` was run during it, which the recorded run did not need. Its timestamps differ from the drill 6 session logs, which remain the record of the drill.
 
 ## The set
@@ -44,8 +45,16 @@ This folder holds screenshots of real terminal output from the lab. Each one is 
 | `24-drill7-layout-after-force.png` | gluster1 | the same layout and count commands as 19, and a link-file count | Commit hash `57096e02`, `drill7` at 177/173, no link files |
 | `25-drill7-client-placement.png` | gluster4 | `getfattr -n trusted.glusterfs.pathinfo -e text` on `drill7/f3.bin` and `drill7/f1.bin`, `df -h /mnt/gv0` | One file on each replica set with its three bricks, and 16G of capacity |
 | `26-drill7-set-digests.png` | each server | `./scripts/compare-bricks.sh` on `drill7` on both bricks | Set 1: 177 files, set 2: 173 files, each digest identical on all three servers |
+| `27-drill8-auth-allow-refused.png` | gluster4 | `umount /mnt/gv0`, `mount -t glusterfs …`, `grep -iE 'auth\|SETVOLUME' /var/log/glusterfs/mnt-gv0.log \| tail -4` | Mount refused once the client's address is removed from `auth.allow` |
+| `28-drill8-certificates.png` | gluster1 | `openssl verify -CAfile ca.pem` on all six certificates, then subject and issuer of each | Five lab certificates verify, `rogue` fails as self-signed |
+| `29-drill8-tls-enabled.png` | gluster1 | `gluster volume get gv0 all \| grep …`, `ls -l /var/lib/glusterd/secure-access /etc/pki/tls/glusterfs.*`, `gluster volume status gv0 \| grep …` | TLS and access options set, files in place, all bricks and self-heal daemons online (addresses redacted) |
+| `30-drill8-tls-on-the-wire.png` | gluster4 | `openssl s_client -connect gluster1:24007` and the same against a brick port, with `-CAfile /etc/pki/tls/glusterfs.ca` | Both ports present `gluster1`'s lab-signed certificate, verified |
+| `31-drill8-no-certificate-refused.png` | gluster4 | certificate moved aside, `mount`, client log | `SSL connect error` and `failed to fetch volume file` |
+| `32-drill8-rogue-certificate-refused.png` | gluster4 | `rogue` certificate installed, `mount`, client log | `alert unknown ca` at the handshake |
+| `33-drill8-wrong-cn-refused.png` | gluster4 | `intruder` certificate installed, `mount`, client log | `Authentication failed` from the bricks |
+| `34-drill8-valid-mount.png` | gluster4 | real certificate restored, `mount`, `df`, a test write, the `drill7` digest | Mounted over TLS, digest `58adce45…` unchanged |
 
-The procedures are in [../docs/failure-drills.md](../docs/failure-drills.md) for drills 1 to 4, [../docs/brick-replacement.md](../docs/brick-replacement.md) for drills 5 and 6, and [../docs/expansion.md](../docs/expansion.md) for drill 7.
+The procedures are in [../docs/failure-drills.md](../docs/failure-drills.md) for drills 1 to 4, [../docs/brick-replacement.md](../docs/brick-replacement.md) for drills 5 and 6, [../docs/expansion.md](../docs/expansion.md) for drill 7, and [../docs/security.md](../docs/security.md) for drill 8.
 
 ## Adding another screenshot
 

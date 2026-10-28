@@ -1,0 +1,117 @@
+# Drill 8: access control and TLS, log excerpts
+# Captured 2026-10-28, times UTC, drill window 16:19 to 17:30. Private addresses masked.
+# The terminal recordings for this drill were not kept. The commands and their effect are
+# shown by Gluster's command history and logs below and by screenshots 27 to 34.
+# The masked addresses in auth.allow are, in order, gluster1, gluster2, gluster3 and gluster4.
+# Sources: cmd_history.log on gluster1 and gluster3, glusterd.log on gluster1,
+# bricks/data-glusterfs-brick1-vol.log on gluster1, mnt-gv0.log on gluster4.
+
+## Gluster commands, gluster1 (cmd_history.log)
+# auth.allow was removed and restored twice; screenshot 27 is from the second refusal.
+[2026-10-28 16:19:35.465432 +0000]  : volume status gv0 : SUCCESS
+[2026-10-28 16:22:35.793551 +0000]  : volume set gv0 auth.allow 192.168.x.x,192.168.x.x,192.168.x.x,192.168.x.x : SUCCESS
+[2026-10-28 16:23:12.123774 +0000]  : volume reset gv0 auth.allow : SUCCESS
+[2026-10-28 16:23:22.843676 +0000]  : volume set gv0 auth.allow 192.168.x.x,192.168.x.x,192.168.x.x,192.168.x.x : SUCCESS
+[2026-10-28 16:25:14.486495 +0000]  : volume set gv0 auth.allow 192.168.x.x,192.168.x.x,192.168.x.x : SUCCESS
+[2026-10-28 16:26:37.482733 +0000]  : volume set gv0 auth.allow 192.168.x.x,192.168.x.x,192.168.x.x,192.168.x.x : SUCCESS
+[2026-10-28 16:27:07.131042 +0000]  : volume set gv0 auth.allow 192.168.x.x,192.168.x.x,192.168.x.x : SUCCESS
+[2026-10-28 16:28:05.258049 +0000]  : volume set gv0 auth.allow 192.168.x.x,192.168.x.x,192.168.x.x,192.168.x.x : SUCCESS
+[2026-10-28 16:47:05.285976 +0000]  : volume stop gv0 : SUCCESS
+[2026-10-28 16:47:12.831871 +0000]  : volume set gv0 client.ssl on : SUCCESS
+[2026-10-28 16:47:19.078890 +0000]  : volume set gv0 server.ssl on : SUCCESS
+[2026-10-28 16:47:31.201656 +0000]  : volume set gv0 auth.ssl-allow gluster1,gluster2,gluster3,gluster4 : SUCCESS
+[2026-10-28 16:52:24.688737 +0000]  : volume start gv0 : FAILED : Commit failed on localhost. Please check log file for details.
+[2026-10-28 16:52:45.851096 +0000]  : volume start gv0 : FAILED : Commit failed on localhost. Please check log file for details.
+[2026-10-28 17:00:16.114184 +0000]  : volume start gv0 : FAILED : Commit failed on localhost. Please check log file for details.
+[2026-10-28 17:00:30.893263 +0000]  : volume start gv0 : FAILED : Commit failed on localhost. Please check log file for details.
+[2026-10-28 17:04:20.041452 +0000]  : volume start gv0 : SUCCESS
+[2026-10-28 17:06:45.042249 +0000]  : volume status gv0 : SUCCESS
+[2026-10-28 17:08:25.689257 +0000]  : volume status gv0 : SUCCESS
+[2026-10-28 17:09:12.548356 +0000]  : volume status gv0 : SUCCESS
+[2026-10-28 17:30:20.211023 +0000]  : volume status gv0 : SUCCESS
+
+## Gluster commands, gluster3 (cmd_history.log)
+[2026-10-28 16:19:39.933647 +0000]  : volume status gv0 : SUCCESS
+[2026-10-28 16:51:55.335908 +0000]  : volume status gv0 : FAILED : Volume gv0 is not started
+[2026-10-28 16:52:04.157880 +0000]  : volume start gv0 : FAILED : Commit failed on localhost. Please check log file for details.
+
+## auth.allow: a mounted client is cut off when its address is removed (brick log, gluster1)
+# Removing gluster4 at 16:25:14 terminated its existing brick connection at once.
+[2026-10-28 16:25:14.482165 +0000] E [MSGID: 115004] [authenticate.c:222:gf_authenticate] 0-auth: no authentication module is interested in accepting remote-client (null) 
+[2026-10-28 16:25:14.482388 +0000] I [MSGID: 115094] [server.c:977:server_reconfigure] 0-gv0-server: unauthorized client, hence terminating the connection [{peerinfo-identifier=192.168.x.x:49119}, {errno=13}, {error=Permission denied}] 
+
+## auth.allow: a new mount from a removed address is refused (client log, gluster4)
+[2026-10-28 16:27:14.061737 +0000] W [MSGID: 114043] [client-handshake.c:491:client_setvolume_cbk] 0-gv0-client-0: failed to set the volume [{errno=13}, {error=Permission denied}] 
+[2026-10-28 16:27:14.061745 +0000] W [MSGID: 114007] [client-handshake.c:516:client_setvolume_cbk] 0-gv0-client-0: failed to get from reply dict [{process-uuid}, {errno=22}, {error=Invalid argument}] 
+[2026-10-28 16:27:14.061750 +0000] E [MSGID: 114044] [client-handshake.c:521:client_setvolume_cbk] 0-gv0-client-0: SETVOLUME on remote-host failed [{remote-error=Authentication failed}, {errno=13}, {error=Permission denied}] 
+[2026-10-28 16:27:14.061756 +0000] I [MSGID: 114049] [client-handshake.c:631:client_setvolume_cbk] 0-gv0-client-0: sending AUTH_FAILED event [] 
+[2026-10-28 16:27:14.061763 +0000] E [fuse-bridge.c:6552:notify] 0-fuse: Server authentication failed. Shutting down.
+
+## TLS on, certificate not at the path this build reads (glusterd log, gluster1)
+# The files had been installed under /etc/ssl; this build reads /etc/pki/tls.
+# First occurrences only; the same errors repeat on every connection attempt until 17:04.
+[2026-10-28 16:51:14.514398 +0000] E [socket.c:4233:ssl_setup_connection_params] 0-socket.management: could not load our cert at /etc/pki/tls/glusterfs.pem
+[2026-10-28 16:51:14.514456 +0000] E [socket.c:222:ssl_dump_error_stack] 0-socket.management:   error:80000002:system library::No such file or directory
+[2026-10-28 16:51:14.516297 +0000] E [socket.c:4233:ssl_setup_connection_params] 0-socket.management: could not load our cert at /etc/pki/tls/glusterfs.pem
+[2026-10-28 16:51:14.516312 +0000] E [socket.c:222:ssl_dump_error_stack] 0-socket.management:   error:80000002:system library::No such file or directory
+[2026-10-28 16:51:14.535722 +0000] E [socket.c:4233:ssl_setup_connection_params] 0-management: could not load our cert at /etc/pki/tls/glusterfs.pem
+[2026-10-28 16:51:14.535738 +0000] E [socket.c:222:ssl_dump_error_stack] 0-management:   error:80000002:system library::No such file or directory
+# A peer whose glusterd had no certificate to offer:
+[2026-10-28 16:52:04.155997 +0000] E [socket.c:222:ssl_dump_error_stack] 0-socket.management:   error:0A0000C1:SSL routines::no shared cipher
+
+## TLS working: servers' own processes authenticate to the brick by certificate name (brick log, gluster1)
+[2026-10-28 17:04:20.047439 +0000] I [login.c:45:gf_auth] 0-auth/login: connecting user name: gluster3
+[2026-10-28 17:04:20.047441 +0000] I [login.c:109:gf_auth] 0-auth/login: allowed user names: gluster1,gluster2,gluster3,gluster4
+[2026-10-28 17:04:20.064302 +0000] I [login.c:45:gf_auth] 0-auth/login: connecting user name: gluster2
+[2026-10-28 17:04:20.064304 +0000] I [login.c:109:gf_auth] 0-auth/login: allowed user names: gluster1,gluster2,gluster3,gluster4
+[2026-10-28 17:04:21.595032 +0000] I [login.c:45:gf_auth] 0-auth/login: connecting user name: gluster1
+[2026-10-28 17:04:21.595038 +0000] I [login.c:109:gf_auth] 0-auth/login: allowed user names: gluster1,gluster2,gluster3,gluster4
+
+## No certificate on the client (client log, gluster4)
+[2026-10-28 17:16:59.246189 +0000] I [socket.c:4107:ssl_setup_connection_params] 0-glusterfs: SSL support for MGMT is ENABLED IO path is ENABLED certificate depth is 1 for peer 
+[2026-10-28 17:16:59.247363 +0000] E [socket.c:4233:ssl_setup_connection_params] 0-glusterfs: could not load our cert at /etc/pki/tls/glusterfs.pem
+[2026-10-28 17:16:59.247386 +0000] E [socket.c:222:ssl_dump_error_stack] 0-glusterfs:   error:80000002:system library::No such file or directory
+[2026-10-28 17:16:59.247390 +0000] E [socket.c:222:ssl_dump_error_stack] 0-glusterfs:   error:10080002:BIO routines::system lib
+[2026-10-28 17:16:59.247392 +0000] E [socket.c:222:ssl_dump_error_stack] 0-glusterfs:   error:0A080002:SSL routines::system lib
+[2026-10-28 17:16:59.251538 +0000] E [socket.c:424:ssl_setup_connection_postfix] 0-glusterfs: SSL connect error (client: ) (server: )
+
+## Self-signed 'rogue' certificate (client log, gluster4)
+[2026-10-28 17:20:12.765149 +0000] I [socket.c:4107:ssl_setup_connection_params] 0-glusterfs: SSL support for MGMT is ENABLED IO path is ENABLED certificate depth is 1 for peer 
+[2026-10-28 17:20:12.773765 +0000] E [socket.c:222:ssl_dump_error_stack] 0-glusterfs:   error:0A000418:SSL routines::tlsv1 alert unknown ca
+
+## Self-signed 'rogue' certificate (glusterd log, gluster1)
+[2026-10-28 17:20:12.768215 +0000] I [socket.c:4107:ssl_setup_connection_params] 0-socket.management: SSL support for MGMT is ENABLED IO path is ENABLED certificate depth is 1 for peer 192.168.x.x:49151
+[2026-10-28 17:20:12.772330 +0000] E [socket.c:222:ssl_dump_error_stack] 0-socket.management:   error:0A000086:SSL routines::certificate verify failed
+
+## Lab-signed 'intruder' certificate: address allowed, name refused (brick log, gluster1)
+[2026-10-28 17:24:17.242403 +0000] I [socket.c:4107:ssl_setup_connection_params] 0-tcp.gv0-server: SSL support for MGMT is ENABLED IO path is ENABLED certificate depth is 1 for peer 192.168.x.x:49144
+[2026-10-28 17:24:17.247977 +0000] I [addr.c:52:compare_addr_and_update] 0-/data/glusterfs/brick1/vol: allowed = "192.168.x.x", received addr = "192.168.x.x"
+[2026-10-28 17:24:17.247993 +0000] I [addr.c:52:compare_addr_and_update] 0-/data/glusterfs/brick1/vol: allowed = "192.168.x.x", received addr = "192.168.x.x"
+[2026-10-28 17:24:17.247996 +0000] I [addr.c:52:compare_addr_and_update] 0-/data/glusterfs/brick1/vol: allowed = "192.168.x.x", received addr = "192.168.x.x"
+[2026-10-28 17:24:17.247998 +0000] I [addr.c:52:compare_addr_and_update] 0-/data/glusterfs/brick1/vol: allowed = "192.168.x.x", received addr = "192.168.x.x"
+[2026-10-28 17:24:17.248010 +0000] I [login.c:45:gf_auth] 0-auth/login: connecting user name: intruder
+[2026-10-28 17:24:17.248012 +0000] I [login.c:109:gf_auth] 0-auth/login: allowed user names: gluster1,gluster2,gluster3,gluster4
+[2026-10-28 17:24:17.248106 +0000] E [MSGID: 115001] [server-handshake.c:684:server_setvolume] 0-gv0-server: Cannot authenticate client from CTX_ID:aa731240-429a-4e89-8421-792106bfc2c5-GRAPH_ID:0-PID:3429-HOST:gluster4-PC_NAME:gv0-client-0-RECON_NO:-0
+
+## Lab-signed 'intruder' certificate (client log, gluster4)
+# Each brick refuses it; client-0 shown.
+[2026-10-28 17:24:17.234441 +0000] I [socket.c:4107:ssl_setup_connection_params] 0-gv0-client-0: SSL support for MGMT is ENABLED IO path is ENABLED certificate depth is 1 for peer 
+[2026-10-28 17:24:17.244313 +0000] I [socket.c:4107:ssl_setup_connection_params] 0-gv0-client-0: SSL support for MGMT is ENABLED IO path is ENABLED certificate depth is 1 for peer 192.168.x.x:24007
+[2026-10-28 17:24:17.250506 +0000] W [MSGID: 114043] [client-handshake.c:491:client_setvolume_cbk] 0-gv0-client-0: failed to set the volume [{errno=13}, {error=Permission denied}] 
+[2026-10-28 17:24:17.250514 +0000] W [MSGID: 114007] [client-handshake.c:516:client_setvolume_cbk] 0-gv0-client-0: failed to get from reply dict [{process-uuid}, {errno=22}, {error=Invalid argument}] 
+[2026-10-28 17:24:17.250518 +0000] E [MSGID: 114044] [client-handshake.c:521:client_setvolume_cbk] 0-gv0-client-0: SETVOLUME on remote-host failed [{remote-error=Authentication failed}, {errno=13}, {error=Permission denied}] 
+[2026-10-28 17:24:17.250521 +0000] I [MSGID: 114049] [client-handshake.c:631:client_setvolume_cbk] 0-gv0-client-0: sending AUTH_FAILED event [] 
+[2026-10-28 17:24:17.250533 +0000] E [fuse-bridge.c:6552:notify] 0-fuse: Server authentication failed. Shutting down.
+[2026-10-28 17:24:17.251532 +0000] E [fuse-bridge.c:6552:notify] 0-fuse: Server authentication failed. Shutting down.
+
+## Real certificate (brick log, gluster1)
+[2026-10-28 17:28:47.927151 +0000] I [login.c:45:gf_auth] 0-auth/login: connecting user name: gluster4
+[2026-10-28 17:28:47.927153 +0000] I [login.c:109:gf_auth] 0-auth/login: allowed user names: gluster1,gluster2,gluster3,gluster4
+
+## Real certificate (client log, gluster4)
+[2026-10-28 17:28:47.925116 +0000] I [MSGID: 114046] [client-handshake.c:621:client_setvolume_cbk] 0-gv0-client-0: Connected, attached to remote volume [{conn-name=gv0-client-0}, {remote_subvol=/data/glusterfs/brick1/vol}] 
+[2026-10-28 17:28:47.925759 +0000] I [MSGID: 114046] [client-handshake.c:621:client_setvolume_cbk] 0-gv0-client-1: Connected, attached to remote volume [{conn-name=gv0-client-1}, {remote_subvol=/data/glusterfs/brick1/vol}] 
+[2026-10-28 17:28:47.925883 +0000] I [MSGID: 114046] [client-handshake.c:621:client_setvolume_cbk] 0-gv0-client-3: Connected, attached to remote volume [{conn-name=gv0-client-3}, {remote_subvol=/data/glusterfs/brick2/vol}] 
+[2026-10-28 17:28:47.926095 +0000] I [MSGID: 114046] [client-handshake.c:621:client_setvolume_cbk] 0-gv0-client-2: Connected, attached to remote volume [{conn-name=gv0-client-2}, {remote_subvol=/data/glusterfs/brick2/vol}] 
+[2026-10-28 17:28:47.926220 +0000] I [MSGID: 114046] [client-handshake.c:621:client_setvolume_cbk] 0-gv0-client-5: Connected, attached to remote volume [{conn-name=gv0-client-5}, {remote_subvol=/data/glusterfs/brick1/vol}] 
+[2026-10-28 17:28:47.926803 +0000] I [MSGID: 114046] [client-handshake.c:621:client_setvolume_cbk] 0-gv0-client-4: Connected, attached to remote volume [{conn-name=gv0-client-4}, {remote_subvol=/data/glusterfs/brick2/vol}] 
