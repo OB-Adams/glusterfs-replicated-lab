@@ -122,6 +122,24 @@ flowchart TB
 
 Quorum on prevents this because the minority side refuses writes. The drill disables quorum and the self-heal options on purpose to create it.
 
+## Monitoring
+
+```mermaid
+flowchart LR
+    subgraph servers["gluster1, gluster2, gluster3"]
+        S["gluster-metrics.sh<br/>every 30 s"] -->|"writes gluster.prom"| T["textfile directory"]
+        T --> NE["node_exporter :9100"]
+    end
+    subgraph g4["gluster4"]
+        P["Prometheus :9090<br/>scrape every 15 s<br/>5 alert rules"]
+        G["Grafana :3000<br/>dashboard Gluster gv0"]
+    end
+    NE -->|"HTTP scrape, 9100 open to gluster4 only"| P
+    G -->|"PromQL"| P
+```
+
+Each server reports the whole volume's state, so the three servers publish the same Gluster values and alert rules combine them with `max by (brick)`. Details are in [monitoring.md](monitoring.md).
+
 ## Trust boundaries and exposure
 
 | Boundary | Traffic | Control in place | Not yet in place |
@@ -129,3 +147,4 @@ Quorum on prevents this because the minority side refuses writes. The drill disa
 | Client to servers | Volfile fetch, file data | firewalld `glusterfs` service on servers; mutual TLS with the lab CA on 24007 and the brick ports; `auth.allow` by address; `auth.ssl-allow` by certificate name ([security.md](security.md)) | |
 | Server to server | Pool management, heal traffic | firewalld `glusterfs` service; mutual TLS with the lab CA; servers authenticate to bricks by certificate name | |
 | Host to guests | SSH for administration | Lab network only | Hardening |
+| Monitoring | Metrics scrape on 9100; Prometheus 9090 and Grafana 3000 on `gluster4` | 9100 open to `gluster4` only; Grafana login | TLS on scrape and UIs, authentication on Prometheus, Alertmanager |

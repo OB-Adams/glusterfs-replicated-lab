@@ -6,7 +6,7 @@ Status values: Planned, In progress, Blocked, Complete. A milestone is marked Co
 |---|---|---|
 | 1 | Replicated cluster and failure drills | Complete |
 | 2 | Brick replacement, expansion and rebalance | Complete |
-| 3 | Security and monitoring | In progress |
+| 3 | Security and monitoring | Complete |
 | 4 | Benchmark baseline | Planned |
 | 5 | Ansible automation | Planned |
 | 6 | CephFS phase and comparison | Planned |
@@ -55,14 +55,14 @@ Status values: Planned, In progress, Blocked, Complete. A milestone is marked Co
 
 **2c result (2026-10-27).** Met. `add-brick` first refused `gluster3`'s old brick because it still carried `gv0`'s volume ID; after the brick was wiped, the volume became `Distributed-Replicate`, `2 x 3 = 6`. Before any rebalance, the existing `drill7` directory gave the new set no range and new files in it stayed on set 1, while a directory created after the expansion was split 45/55. The first rebalance completed but skipped 320 files on the free-space rule (`__dht_check_free_space`), leaving 173 of `drill7`'s files behind link files. `rebalance start force` then moved every file to its hashed set, giving `drill7` 177 and 173 files per set with no link files, and also moved 13 files from earlier drills back to set 1. The original files' digest from the client was unchanged, and each set's three copies matched on all three servers. Full write-up in [expansion.md](expansion.md).
 
-## Milestone 3: security and monitoring (in progress)
+## Milestone 3: security and monitoring
 
 **Goal.** TLS for management and I/O traffic, access restriction with `auth.allow`, and metrics with alerts on heal backlog and brick state.
 
 | Step | Description | Status |
 |---|---|---|
 | 3a | Access restriction with `auth.allow`, and mutual TLS for management and I/O traffic | Complete |
-| 3b | Metrics, a dashboard, and alerts on heal backlog and brick state | Planned |
+| 3b | Metrics, a dashboard, and alerts on heal backlog and brick state | Complete |
 
 **Acceptance criteria.**
 
@@ -70,6 +70,8 @@ Status values: Planned, In progress, Blocked, Complete. A milestone is marked Co
 - 3b: a dashboard and at least two alert rules are exercised by a drill.
 
 **3a result (2026-10-28).** Met. `auth.allow` refused the client once its address was removed, and also dropped its existing mount at once. With a lab CA, a certificate per machine, `secure-access`, `client.ssl`, `server.ssl` and `auth.ssl-allow`, both 24007 and the brick ports speak TLS. A client with no certificate could not fetch the volfile, a self-signed certificate was refused at the TLS handshake (`certificate verify failed`), and a lab-signed certificate for a name not on `auth.ssl-allow` was refused by every brick. The real client mounted over TLS with the `drill7` digest unchanged. On this build the certificates must be in `/etc/pki/tls`; with them in `/etc/ssl`, `glusterd` could not load them and `volume start` failed until they were moved. Full write-up in [security.md](security.md).
+
+**3b result (2026-10-28).** Met. `node_exporter` with a textfile script exports brick, heal and peer state from each server; Prometheus and Grafana run on `gluster4` from files in [../monitoring](../monitoring), with five alert rules and a provisioned dashboard. Crashing `gluster3`'s set 2 brick with `kill -9` while a client wrote made `GlusterBrickDown` and `GlusterHealBacklog` go pending at the same evaluation, about 30 seconds after the crash, and then fire. After `volume start gv0 force` the self-heal daemon healed the backlog within seconds without a heal command, and both alerts resolved. The brick was crashed a second time with the same result. The crashed brick's copies matched the other two in its set afterwards. Full write-up in [monitoring.md](monitoring.md).
 
 ## Milestone 4: benchmark baseline (planned)
 

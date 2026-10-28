@@ -1,0 +1,140 @@
+# Drill 9: Prometheus alert state captured from /api/v1/alerts on gluster4
+# Captured 2026-10-28, times UTC. activeAt is when the alert first became pending.
+# Captures 2 and 3 are identical: both rules were already firing when capture 2 was taken.
+
+## 1-baseline: Before the crash
+(no active alerts)
+raw:
+{
+    "status": "success",
+    "data": {
+        "alerts": []
+    }
+}
+
+## 2-brick-down: First capture during incident 1
+GlusterBrickDown     firing   activeAt=2026-10-28T22:36:19.828165973Z  brick=gluster3:/data/glusterfs/brick1/vol  severity=critical  value=0e+00
+GlusterHealBacklog   firing   activeAt=2026-10-28T22:36:19.828165973Z  brick=gluster1:/data/glusterfs/brick2/vol  severity=warning  value=1.01e+02
+GlusterHealBacklog   firing   activeAt=2026-10-28T22:36:19.828165973Z  brick=gluster2:/data/glusterfs/brick2/vol  severity=warning  value=1.01e+02
+raw:
+{
+    "status": "success",
+    "data": {
+        "alerts": [
+            {
+                "labels": {
+                    "alertname": "GlusterBrickDown",
+                    "brick": "gluster3:/data/glusterfs/brick1/vol",
+                    "severity": "critical",
+                    "volume": "gv0"
+                },
+                "annotations": {
+                    "description": "No server reports brick gluster3:/data/glusterfs/brick1/vol of gv0 online. Its replica set is running on two copies, and changes are queuing for heal.",
+                    "summary": "Brick gluster3:/data/glusterfs/brick1/vol is offline"
+                },
+                "state": "firing",
+                "activeAt": "2026-10-28T22:36:19.828165973Z",
+                "value": "0e+00"
+            },
+            {
+                "labels": {
+                    "alertname": "GlusterHealBacklog",
+                    "brick": "gluster1:/data/glusterfs/brick2/vol",
+                    "severity": "warning",
+                    "volume": "gv0"
+                },
+                "annotations": {
+                    "description": "Copies in a replica set of gv0 have disagreed for more than two minutes.",
+                    "summary": "101 entries pending heal on gluster1:/data/glusterfs/brick2/vol"
+                },
+                "state": "firing",
+                "activeAt": "2026-10-28T22:36:19.828165973Z",
+                "value": "1.01e+02"
+            },
+            {
+                "labels": {
+                    "alertname": "GlusterHealBacklog",
+                    "brick": "gluster2:/data/glusterfs/brick2/vol",
+                    "severity": "warning",
+                    "volume": "gv0"
+                },
+                "annotations": {
+                    "description": "Copies in a replica set of gv0 have disagreed for more than two minutes.",
+                    "summary": "101 entries pending heal on gluster2:/data/glusterfs/brick2/vol"
+                },
+                "state": "firing",
+                "activeAt": "2026-10-28T22:36:19.828165973Z",
+                "value": "1.01e+02"
+            }
+        ]
+    }
+}
+
+## 3-both-firing: Second capture during incident 1
+GlusterBrickDown     firing   activeAt=2026-10-28T22:36:19.828165973Z  brick=gluster3:/data/glusterfs/brick1/vol  severity=critical  value=0e+00
+GlusterHealBacklog   firing   activeAt=2026-10-28T22:36:19.828165973Z  brick=gluster1:/data/glusterfs/brick2/vol  severity=warning  value=1.01e+02
+GlusterHealBacklog   firing   activeAt=2026-10-28T22:36:19.828165973Z  brick=gluster2:/data/glusterfs/brick2/vol  severity=warning  value=1.01e+02
+raw:
+{
+    "status": "success",
+    "data": {
+        "alerts": [
+            {
+                "labels": {
+                    "alertname": "GlusterBrickDown",
+                    "brick": "gluster3:/data/glusterfs/brick1/vol",
+                    "severity": "critical",
+                    "volume": "gv0"
+                },
+                "annotations": {
+                    "description": "No server reports brick gluster3:/data/glusterfs/brick1/vol of gv0 online. Its replica set is running on two copies, and changes are queuing for heal.",
+                    "summary": "Brick gluster3:/data/glusterfs/brick1/vol is offline"
+                },
+                "state": "firing",
+                "activeAt": "2026-10-28T22:36:19.828165973Z",
+                "value": "0e+00"
+            },
+            {
+                "labels": {
+                    "alertname": "GlusterHealBacklog",
+                    "brick": "gluster1:/data/glusterfs/brick2/vol",
+                    "severity": "warning",
+                    "volume": "gv0"
+                },
+                "annotations": {
+                    "description": "Copies in a replica set of gv0 have disagreed for more than two minutes.",
+                    "summary": "101 entries pending heal on gluster1:/data/glusterfs/brick2/vol"
+                },
+                "state": "firing",
+                "activeAt": "2026-10-28T22:36:19.828165973Z",
+                "value": "1.01e+02"
+            },
+            {
+                "labels": {
+                    "alertname": "GlusterHealBacklog",
+                    "brick": "gluster2:/data/glusterfs/brick2/vol",
+                    "severity": "warning",
+                    "volume": "gv0"
+                },
+                "annotations": {
+                    "description": "Copies in a replica set of gv0 have disagreed for more than two minutes.",
+                    "summary": "101 entries pending heal on gluster2:/data/glusterfs/brick2/vol"
+                },
+                "state": "firing",
+                "activeAt": "2026-10-28T22:36:19.828165973Z",
+                "value": "1.01e+02"
+            }
+        ]
+    }
+}
+
+## 4-resolved: After recovery
+(no active alerts)
+raw:
+{
+    "status": "success",
+    "data": {
+        "alerts": []
+    }
+}
+

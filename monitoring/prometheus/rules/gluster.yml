@@ -1,0 +1,45 @@
+groups:
+  - name: gluster
+    rules:
+      - alert: GlusterBrickDown
+        expr: max by (volume, brick) (gluster_brick_up) == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Brick {{ $labels.brick }} is offline"
+          description: "No server reports brick {{ $labels.brick }} of {{ $labels.volume }} online. Its replica set is running on two copies, and changes are queuing for heal."
+
+      - alert: GlusterHealBacklog
+        expr: max by (volume, brick) (gluster_heal_pending_entries) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value }} entries pending heal on {{ $labels.brick }}"
+          description: "Copies in a replica set of {{ $labels.volume }} have disagreed for more than two minutes."
+
+      - alert: GlusterSplitBrain
+        expr: max by (volume, brick) (gluster_heal_split_brain_entries) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Split-brain entries on {{ $labels.brick }}"
+          description: "No copy can be trusted automatically. See docs/failure-drills.md, drill 4."
+
+      - alert: GlusterExporterDown
+        expr: up{job="gluster-nodes"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cannot scrape {{ $labels.instance }}"
+          description: "The server is down, node_exporter has stopped, or the firewall blocks 9100."
+
+      - alert: GlusterMetricsStale
+        expr: time() - max by (instance) (gluster_metrics_last_success_timestamp_seconds) > 120
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gluster metrics on {{ $labels.instance }} are stale"
+          description: "gluster-metrics.sh has not completed successfully for over two minutes."

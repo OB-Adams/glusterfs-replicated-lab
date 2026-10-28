@@ -10,6 +10,7 @@ This folder holds screenshots of real terminal output from the lab. Each one is 
 - Check each image for private addresses, tokens or personal information before committing.
 - Use the exact file names below. The main README refers to them.
 - Where a command sequence is long or its output scrolls, the commands may be re-run afterwards in a clean terminal to capture a readable image. Screenshots 09 and 10 were captured that way, so their timestamps and counters differ from the session logs in `../docs/evidence`, which remain the record of the drill itself.
+- Browser screenshots are cropped to the page, without the address bar, which shows `gluster4`'s private address. Screenshot 41 was cropped this way after capture.
 - Screenshot 29 shows the `auth.allow` value covered by a grey box, because it lists the lab's private addresses. Nothing else in it is changed.
 - Screenshots 13 to 16 come from a repeat of drill 6, run after the recorded run had been reversed, to capture clean images. The repeat skipped the client writer, and a `heal full` was run during it, which the recorded run did not need. Its timestamps differ from the drill 6 session logs, which remain the record of the drill.
 
@@ -53,8 +54,18 @@ This folder holds screenshots of real terminal output from the lab. Each one is 
 | `32-drill8-rogue-certificate-refused.png` | gluster4 | `rogue` certificate installed, `mount`, client log | `alert unknown ca` at the handshake |
 | `33-drill8-wrong-cn-refused.png` | gluster4 | `intruder` certificate installed, `mount`, client log | `Authentication failed` from the bricks |
 | `34-drill8-valid-mount.png` | gluster4 | real certificate restored, `mount`, `df`, a test write, the `drill7` digest | Mounted over TLS, digest `58adce45…` unchanged |
+| `35-drill9-gluster-metrics.png` | gluster4 | `curl -s gluster1:9100/metrics \| grep '^gluster_'` | The Gluster metrics served by `gluster1`'s exporter |
+| `36-drill9-prometheus-targets.png` | browser | Prometheus, Status → Targets | Three `gluster-nodes` targets `UP` |
+| `37-drill9-alert-rules.png` | browser | Prometheus, Alerts | Five rules loaded, all inactive |
+| `38-drill9-dashboard-healthy.png` | browser | Grafana, Gluster gv0 | Baseline: 6 bricks online, 0 pending, 0 split-brain, 0 alerts |
+| `39-drill9-brick-killed.png` | gluster3 | brick PID from `volume status`, `kill -9`, `date -u`, `volume status` | The set 2 brick offline after the kill (incident 1; `date` was printed after the kill) |
+| `40-drill9-alerts-firing.png` | browser | Prometheus, Alerts, both rules expanded | `GlusterBrickDown` and `GlusterHealBacklog` firing in incident 1 |
+| `41-drill9-dashboard-incident.png` | browser | Grafana, Gluster gv0 | Incident 2: 5 bricks online, backlog rising, 3 alerts firing; incident 1 visible earlier |
+| `42-drill9-brick-recovered.png` | gluster1 | `volume status gv0 \| grep '^Brick gluster3'`, `heal info summary` | After incident 1's `start force`: brick online, all heal counts 0 |
+| `43-drill9-dashboard-recovered.png` | browser | Grafana, Gluster gv0 | After recovery: both incidents on the time axis, nothing pending or firing |
+| `44-drill9-set-digests.png` | each server | `./scripts/compare-bricks.sh` on the set 2 copy of `drill9` | 149 files with the same digest on all three servers |
 
-The procedures are in [../docs/failure-drills.md](../docs/failure-drills.md) for drills 1 to 4, [../docs/brick-replacement.md](../docs/brick-replacement.md) for drills 5 and 6, [../docs/expansion.md](../docs/expansion.md) for drill 7, and [../docs/security.md](../docs/security.md) for drill 8.
+The procedures are in [../docs/failure-drills.md](../docs/failure-drills.md) for drills 1 to 4, [../docs/brick-replacement.md](../docs/brick-replacement.md) for drills 5 and 6, [../docs/expansion.md](../docs/expansion.md) for drill 7, [../docs/security.md](../docs/security.md) for drill 8, and [../docs/monitoring.md](../docs/monitoring.md) for drill 9.
 
 ## Adding another screenshot
 

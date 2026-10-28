@@ -1,0 +1,720 @@
+# Drill 9: monitoring and alerts, session log from gluster1
+# Captured 2026-10-28 with script(1), times UTC. Private addresses masked.
+# Cleaned for reading: terminal control codes removed, and the duplicate echoes the terminal
+# draws for pasted commands removed where detected. Output is unchanged.
+# gluster1 ran the baseline check, installed its exporter and metrics timer, and ran the first recovery (volume start force, 22:40:46) and the closing check.
+#
+
+Script started on 2026-10-28 21:44:33+00:00 [TERM="xterm-256color" TTY="/dev/pts/0" COLUMNS="162" LINES="48"]
+root@gluster1:~# date -u '+[%Y-%m-%d %H:%M' > ~/drill9-start
+root@gluster1:~# cat drill9-s
+drill9-session-gluster1.txt  drill9-start
+root@gluster1:~# cat drill9-start
+[2026-10-28 21:44
+root@gluster1:~# clear
+root@gluster1:~# ./scripts/check-cluster.sh
+
+getent hosts gluster4
+
+== peers ==
+UUID					Hostname 	State
+dafb797c-f2c6-4693-8fd0-b5877f34e70e	gluster2 	Connected
+a4727315-5cf8-47cb-a1a0-2ffbbb3586ae	gluster3 	Connected
+5b24c36c-3aa7-4ec2-9f94-67da01d45b4e	localhost	Connected
+
+== volume status: gv0 ==
+Status of volume: gv0
+Gluster process                             TCP Port  RDMA Port  Online  Pid
+------------------------------------------------------------------------------
+Brick gluster1:/data/glusterfs/brick1/vol   59306     0          Y       2268
+Brick gluster2:/data/glusterfs/brick1/vol   55888     0          Y       2268
+Brick gluster3:/data/glusterfs/brick2/vol   50531     0          Y       1554
+Brick gluster1:/data/glusterfs/brick2/vol   49452     0          Y       2284
+Brick gluster2:/data/glusterfs/brick2/vol   59864     0          Y       2284
+Brick gluster3:/data/glusterfs/brick1/vol   58784     0          Y       1797
+Self-heal Daemon on localhost               N/A       N/A        Y       2301
+Self-heal Daemon on gluster2                N/A       N/A        Y       2301
+Self-heal Daemon on gluster3                N/A       N/A        Y       2081
+
+Task Status of Volume gv0
+------------------------------------------------------------------------------
+Task                 : Rebalance
+ID                   : None
+Status               : reset due to reset-brick
+
+
+== heal summary: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster1:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+
+== split-brain entries: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster1:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster2:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+
+== selected options: gv0 ==
+cluster.quorum-type                      auto
+cluster.server-quorum-type               off
+cluster.self-heal-daemon                 on (DEFAULT)
+network.ping-timeout                     42 (DEFAULT)
+192.168.x.x   gluster4
+root@gluster1:~# cd /tmp
+curl -LO https://github.com/prometheus/node_exporter/releases/download/v1.8.2/node_exporter-1.8.2.linux-arm64.tar.gz
+tar xzf node_exporter-1.8.2.linux-arm64.tar.gz
+install -m 0755 node_exporter-1.8.2.linux-arm64/node_exporter /usr/local/bin/node_exporter
+useradd --system --no-create-home --shell /sbin/nologin node_exporter
+mkdir -p /var/lib/node_exporter/textfile
+cd
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100 9723k  100 9723k    0     0  1113k      0  0:00:08  0:00:08 --:--:-- 2202k
+
+ls: cannot access '/tmo': No such file or directory
+
+ansible_ansible.legacy.command_payload_0jsdm6vq  systemd-private-08368f56bd894c36993b85725d828745-chronyd.service-EWNax8
+ansible_ansible.legacy.command_payload_iv87bhjm  systemd-private-08368f56bd894c36993b85725d828745-dbus-broker.service-NBFio2
+ansible_ansible.legacy.command_payload_j69rp4wk  systemd-private-08368f56bd894c36993b85725d828745-irqbalance.service-gFJ1qP
+node_exporter-1.8.2.linux-arm64                  systemd-private-08368f56bd894c36993b85725d828745-kdump.service-02MaLC
+node_exporter-1.8.2.linux-arm64.tar.gz           systemd-private-08368f56bd894c36993b85725d828745-systemd-logind.service-MaBvlf
+root@gluster1:~# ls /usr/local/bin/node_exporter
+/usr/local/bin/node_exporter
+root@gluster1:~# cat > /etc/systemd/system/node_exporter.service <<'EOF'
+[Unit]
+Description=Prometheus node_exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=node_exporter
+ExecStart=/usr/local/bin/node_exporter --collector.textfile.directory=/var/lib/node_exporter/textfile
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+root@gluster1:~# cat > /etc/systemd/system/node_exporter.service <<'EOF'
+[Unit]
+Description=Prometheus node_exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=node_exporter
+ExecStart=/usr/local/bin/node_exporter --collector.textfile.directory=/var/lib/node_exporter/textfile
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+root@gluster1:~# cat > /usr/local/bin/gluster-metrics.sh <<'EOF'
+#!/usr/bin/env bash
+# Write Gluster brick, heal and peer state for node_exporter's textfile collector.
+# Usage: gluster-metrics.sh [volume] [textfile-directory]
+set -uo pipefail
+
+vol=${1:-gv0}
+dir=${2:-/var/lib/node_exporter/textfile}
+out="$dir/gluster.prom"
+tmp=$(mktemp "$dir/.gluster.prom.XXXXXX") || exit 1
+trap 'rm -f "$tmp"' EXIT
+
+status=$(gluster volume status "$vol" 2>/dev/null); rc_status=$?
+# heal info can exit non-zero while a brick is unreachable, so its output is checked instead
+heal=$(gluster volume heal "$vol" info summary 2>/dev/null)
+pool=$(gluster pool list 2>/dev/null); rc_pool=$?
+
+{
+  echo '# HELP gluster_brick_up Brick process online according to gluster volume status (1 online, 0 offline).'
+  echo '# TYPE gluster_brick_up gauge'
+  printf '%s\n' "$status" | awk -v v="$vol" '$1 == "Brick" {
+    split($2, a, ":")
+    printf "gluster_brick_up{volume=\"%s\",host=\"%s\",brick=\"%s\"} %d\n", v, a[1], $2, ($(NF-1) == "Y")
+  }'
+
+  echo '# HELP gluster_heal_pending_entries Entries pending heal on a brick. Absent while the brick is unreachable.'
+  echo '# TYPE gluster_heal_pending_entries gauge'
+  printf '%s\n' "$heal" | awk -v v="$vol" '
+    /^Brick / { b = $2 }
+    /^Total Number of entries:/ && $NF ~ /^[0-9]+$/ {
+      printf "gluster_heal_pending_entries{volume=\"%s\",brick=\"%s\"} %s\n", v, b, $NF }'
+
+  echo '# HELP gluster_heal_split_brain_entries Entries in split-brain on a brick. Absent while the brick is unreachable.'
+  echo '# TYPE gluster_heal_split_brain_entries gauge'
+  printf '%s\n' "$heal" | awk -v v="$vol" '
+    /^Brick / { b = $2 }
+    /^Number of entries in split-brain:/ && $NF ~ /^[0-9]+$/ {
+      printf "gluster_heal_split_brain_entries{volume=\"%s\",brick=\"%s\"} %s\n", v, b, $NF }'
+
+  echo '# HELP gluster_peer_connected Peer state according to gluster pool list (1 connected).'
+  echo '# TYPE gluster_peer_connected gauge'
+  printf '%s\n' "$pool" | awk 'NR > 1 && NF >= 3 {
+    printf "gluster_peer_connected{peer=\"%s\"} %d\n", $2, ($3 == "Connected") }'
+
+  if [ "$rc_status" -eq 0 ] && [ "$rc_pool" -eq 0 ] && printf '%s\n' "$heal" | grep -q '^Brick '; then
+    echo '# HELP gluster_metrics_last_success_timestamp_seconds Unix time of the last run in which every gluster command returned data.'
+    echo '# TYPE gluster_metrics_last_success_timestamp_seconds gauge'
+    echo "gluster_metrics_last_success_timestamp_seconds $(date +%s)"
+out="$dir/gluster.prom"
+tmp=$(mktemp "$dir/.gluster.prom.XXXXXX") || exit 1
+trap 'rm -f "$tmp"' EXIT
+
+status=$(gluster volume status "$vol" 2>/dev/null); rc_status=$?
+# heal info can exit non-zero while a brick is unreachable, so its output is checked instead
+heal=$(gluster volume heal "$vol" info summary 2>/dev/null)
+pool=$(gluster pool list 2>/dev/null); rc_pool=$?
+
+{
+  echo '# HELP gluster_brick_up Brick process online according to gluster volume status (1 online, 0 offline).'
+  echo '# TYPE gluster_brick_up gauge'
+  printf '%s\n' "$status" | awk -v v="$vol" '$1 == "Brick" {
+    split($2, a, ":")
+    printf "gluster_brick_up{volume=\"%s\",host=\"%s\",brick=\"%s\"} %d\n", v, a[1], $2, ($(NF-1) == "Y")
+  }'
+
+  echo '# HELP gluster_heal_pending_entries Entries pending heal on a brick. Absent while the brick is unreachable.'
+  echo '# TYPE gluster_heal_pending_entries gauge'
+  printf '%s\n' "$heal" | awk -v v="$vol" '
+    /^Brick / { b = $2 }
+    /^Total Number of entries:/ && $NF ~ /^[0-9]+$/ {
+      printf "gluster_heal_pending_entries{volume=\"%s\",brick=\"%s\"} %s\n", v, b, $NF }'
+
+  echo '# HELP gluster_heal_split_brain_entries Entries in split-brain on a brick. Absent while the brick is unreachable.'
+  echo '# TYPE gluster_heal_split_brain_entries gauge'
+  printf '%s\n' "$heal" | awk -v v="$vol" '
+    /^Brick / { b = $2 }
+    /^Number of entries in split-brain:/ && $NF ~ /^[0-9]+$/ {
+      printf "gluster_heal_split_brain_entries{volume=\"%s\",brick=\"%s\"} %s\n", v, b, $NF }'
+
+  echo '# HELP gluster_peer_connected Peer state according to gluster pool list (1 connected).'
+  echo '# TYPE gluster_peer_connected gauge'
+  printf '%s\n' "$pool" | awk 'NR > 1 && NF >= 3 {
+    printf "gluster_peer_connected{peer=\"%s\"} %d\n", $2, ($3 == "Connected") }'
+
+  if [ "$rc_status" -eq 0 ] && [ "$rc_pool" -eq 0 ] && printf '%s\n' "$heal" | grep -q '^Brick '; then
+    echo '# HELP gluster_metrics_last_success_timestamp_seconds Unix time of the last run in which every gluster command returned data.'
+    echo '# TYPE gluster_metrics_last_success_timestamp_seconds gauge'
+    echo "gluster_metrics_last_success_timestamp_seconds $(date +%s)"
+chmod 0755 /usr/local/bin/gluster-metrics.sh
+root@gluster1:~# cat > /etc/systemd/system/gluster-metrics.service <<'EOF'
+[Unit]
+Description=Write Gluster metrics for node_exporter
+After=glusterd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/gluster-metrics.sh gv0
+EOF
+
+cat > /etc/systemd/system/gluster-metrics.timer <<'EOF'
+[Unit]
+Description=Write Gluster metrics every 30 seconds
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target
+root@gluster1:~# cat > /etc/systemd/system/gluster-metrics.service <<'EOF'
+[Unit]
+Description=Write Gluster metrics for node_exporter
+After=glusterd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/gluster-metrics.sh gv0
+EOF
+
+cat > /etc/systemd/system/gluster-metrics.timer <<'EOF'
+[Unit]
+Description=Write Gluster metrics every 30 seconds
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target
+EOF
+root@gluster1:~# systemctl daemon-reload
+systemctl enable --now node_exporter gluster-metrics.timer
+firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="C" port port="9100" protocol="tcp" accept'
+firewall-cmd --reload
+systemctl start gluster-metrics.service
+Created symlink /etc/systemd/system/multi-user.target.wants/node_exporter.service → /etc/systemd/system/node_exporter.service.
+Created symlink /etc/systemd/system/timers.target.wants/gluster-metrics.timer → /etc/systemd/system/gluster-metrics.timer.
+Error: INVALID_ADDR: C
+success
+systemctl daemon-reload
+systemctl enable --now node_exporter gluster-metrics.timer
+firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="C" port port="9100" protocol="tcp" accept'
+firewall-cmd --reload
+systemctl daemon-reload
+systemctl enable --now node_exporter gluster-metrics.timer
+firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="C" port port="9100" protocol="tcp" accept'
+firewall-cmd --reload
+
+
+
+success
+success
+root@gluster1:~# systemctl status gluster-metrics.timer
+● gluster-metrics.timer - Write Gluster metrics every 30 seconds
+     Loaded: loaded (/etc/systemd/system/gluster-metrics.timer; enabled; preset: disabled)root@gluster1:~# cat /var/lib/node_exporter/textfile/gluster.prom
+# HELP gluster_brick_up Brick process online according to gluster volume status (1 online, 0 offline).
+# TYPE gluster_brick_up gauge
+gluster_brick_up{volume="gv0",host="gluster1",brick="gluster1:/data/glusterfs/brick1/vol"} 1
+gluster_brick_up{volume="gv0",host="gluster2",brick="gluster2:/data/glusterfs/brick1/vol"} 1
+gluster_brick_up{volume="gv0",host="gluster3",brick="gluster3:/data/glusterfs/brick2/vol"} 1
+gluster_brick_up{volume="gv0",host="gluster1",brick="gluster1:/data/glusterfs/brick2/vol"} 1
+gluster_brick_up{volume="gv0",host="gluster2",brick="gluster2:/data/glusterfs/brick2/vol"} 1
+gluster_brick_up{volume="gv0",host="gluster3",brick="gluster3:/data/glusterfs/brick1/vol"} 1
+# HELP gluster_heal_pending_entries Entries pending heal on a brick. Absent while the brick is unreachable.
+# TYPE gluster_heal_pending_entries gauge
+gluster_heal_pending_entries{volume="gv0",brick="gluster1:/data/glusterfs/brick1/vol"} 0
+gluster_heal_pending_entries{volume="gv0",brick="gluster2:/data/glusterfs/brick1/vol"} 0
+gluster_heal_pending_entries{volume="gv0",brick="gluster3:/data/glusterfs/brick2/vol"} 0
+gluster_heal_pending_entries{volume="gv0",brick="gluster1:/data/glusterfs/brick2/vol"} 0
+gluster_heal_pending_entries{volume="gv0",brick="gluster2:/data/glusterfs/brick2/vol"} 0
+gluster_heal_pending_entries{volume="gv0",brick="gluster3:/data/glusterfs/brick1/vol"} 0
+# HELP gluster_heal_split_brain_entries Entries in split-brain on a brick. Absent while the brick is unreachable.
+# TYPE gluster_heal_split_brain_entries gauge
+gluster_heal_split_brain_entries{volume="gv0",brick="gluster1:/data/glusterfs/brick1/vol"} 0
+gluster_heal_split_brain_entries{volume="gv0",brick="gluster2:/data/glusterfs/brick1/vol"} 0
+gluster_heal_split_brain_entries{volume="gv0",brick="gluster3:/data/glusterfs/brick2/vol"} 0
+gluster_heal_split_brain_entries{volume="gv0",brick="gluster1:/data/glusterfs/brick2/vol"} 0
+gluster_heal_split_brain_entries{volume="gv0",brick="gluster2:/data/glusterfs/brick2/vol"} 0
+gluster_heal_split_brain_entries{volume="gv0",brick="gluster3:/data/glusterfs/brick1/vol"} 0
+# HELP gluster_peer_connected Peer state according to gluster pool list (1 connected).
+# TYPE gluster_peer_connected gauge
+gluster_peer_connected{peer="gluster2"} 1
+gluster_peer_connected{peer="gluster3"} 1
+gluster_peer_connected{peer="localhost"} 1
+# HELP gluster_metrics_last_success_timestamp_seconds Unix time of the last run in which every gluster command returned data.
+# TYPE gluster_metrics_last_success_timestamp_seconds gauge
+gluster_metrics_last_success_timestamp_seconds 1793224856
+
+# /etc/systemd/system/node_exporter.serviceroot@gluster1:~# ls /var/lib/node_exporter/textfile
+gluster.prom
+
+# HELP gluster_brick_up Brick process online according to gluster volume status (1 online, 0 offline).
+# TYPE gluster_brick_up gauge
+gluster_brick_up{volume="gv0",host="gluster1",brick="gluster1:/data/glusterfs/brick1/vol"} 1
+gluster_brick_up{volume="gv0",host="gluster2",brick="gluster2:/data/glusterfs/brick1/vol"} 1
+gluster_brick_up{volume="gv0",host="gluster3",brick="gluster3:/data/glusterfs/brick2/vol"} 1
+gluster_brick_up{volume="gv0",host="gluster1",brick="gluster1:/data/glusterfs/brick2/vol"} 1
+gluster_brick_up{volume="gv0",host="gluster2",brick="gluster2:/data/glusterfs/brick2/vol"} 1
+gluster_brick_up{volume="gv0",host="gluster3",brick="gluster3:/data/glusterfs/brick1/vol"} 1
+# HELP gluster_heal_pending_entries Entries pending heal on a brick. Absent while the brick is unreachable.
+# TYPE gluster_heal_pending_entries gauge
+gluster_heal_pending_entries{volume="gv0",brick="gluster1:/data/glusterfs/brick1/vol"} 0
+gluster_heal_pending_entries{volume="gv0",brick="gluster2:/data/glusterfs/brick1/vol"} 0
+gluster_heal_pending_entries{volume="gv0",brick="gluster3:/data/glusterfs/brick2/vol"} 0
+gluster_heal_pending_entries{volume="gv0",brick="gluster1:/data/glusterfs/brick2/vol"} 0
+gluster_heal_pending_entries{volume="gv0",brick="gluster2:/data/glusterfs/brick2/vol"} 0
+gluster_heal_pending_entries{volume="gv0",brick="gluster3:/data/glusterfs/brick1/vol"} 0
+# HELP gluster_heal_split_brain_entries Entries in split-brain on a brick. Absent while the brick is unreachable.
+# TYPE gluster_heal_split_brain_entries gauge
+gluster_heal_split_brain_entries{volume="gv0",brick="gluster1:/data/glusterfs/brick1/vol"} 0
+gluster_heal_split_brain_entries{volume="gv0",brick="gluster2:/data/glusterfs/brick1/vol"} 0
+gluster_heal_split_brain_entries{volume="gv0",brick="gluster3:/data/glusterfs/brick2/vol"} 0
+gluster_heal_split_brain_entries{volume="gv0",brick="gluster1:/data/glusterfs/brick2/vol"} 0
+gluster_heal_split_brain_entries{volume="gv0",brick="gluster2:/data/glusterfs/brick2/vol"} 0
+gluster_heal_split_brain_entries{volume="gv0",brick="gluster3:/data/glusterfs/brick1/vol"} 0
+# HELP gluster_peer_connected Peer state according to gluster pool list (1 connected).
+# TYPE gluster_peer_connected gauge
+gluster_peer_connected{peer="gluster2"} 1
+gluster_peer_connected{peer="gluster3"} 1
+gluster_peer_connected{peer="localhost"} 1
+# HELP gluster_metrics_last_success_timestamp_seconds Unix time of the last run in which every gluster command returned data.
+# TYPE gluster_metrics_last_success_timestamp_seconds gauge
+gluster_metrics_last_success_timestamp_seconds 1793226003
+root@gluster1:~# clear
+
+#!/usr/bin/env bash
+# Write Gluster brick, heal and peer state for node_exporter's textfile collector.
+# Usage: gluster-metrics.sh [volume] [textfile-directory]
+set -uo pipefail
+
+vol=${1:-gv0}
+dir=${2:-/var/lib/node_exporter/textfile}
+out="$dir/gluster.prom"
+tmp=$(mktemp "$dir/.gluster.prom.XXXXXX") || exit 1
+trap 'rm -f "$tmp"' EXIT
+
+status=$(gluster volume status "$vol" 2>/dev/null); rc_status=$?
+# heal info can exit non-zero while a brick is unreachable, so its output is checked instead
+heal=$(gluster volume heal "$vol" info summary 2>/dev/null)
+pool=$(gluster pool list 2>/dev/null); rc_pool=$?
+
+{
+  echo '# HELP gluster_brick_up Brick process online according to gluster volume status (1 online, 0 offline).'
+  echo '# TYPE gluster_brick_up gauge'
+  printf '%s\n' "$status" | awk -v v="$vol" '$1 == "Brick" {
+    split($2, a, ":")
+    printf "gluster_brick_up{volume=\"%s\",host=\"%s\",brick=\"%s\"} %d\n", v, a[1], $2, ($(NF-1) == "Y")
+  }'
+
+  echo '# HELP gluster_heal_pending_entries Entries pending heal on a brick. Absent while the brick is unreachable.'
+  echo '# TYPE gluster_heal_pending_entries gauge'
+  printf '%s\n' "$heal" | awk -v v="$vol" '
+    /^Brick / { b = $2 }
+    /^Total Number of entries:/ && $NF ~ /^[0-9]+$/ {
+      printf "gluster_heal_pending_entries{volume=\"%s\",brick=\"%s\"} %s\n", v, b, $NF }'
+
+  echo '# HELP gluster_heal_split_brain_entries Entries in split-brain on a brick. Absent while the brick is unreachable.'
+  echo '# TYPE gluster_heal_split_brain_entries gauge'
+  printf '%s\n' "$heal" | awk -v v="$vol" '
+    /^Brick / { b = $2 }
+    /^Number of entries in split-brain:/ && $NF ~ /^[0-9]+$/ {
+      printf "gluster_heal_split_brain_entries{volume=\"%s\",brick=\"%s\"} %s\n", v, b, $NF }'
+
+  echo '# HELP gluster_peer_connected Peer state according to gluster pool list (1 connected).'
+  echo '# TYPE gluster_peer_connected gauge'
+  printf '%s\n' "$pool" | awk 'NR > 1 && NF >= 3 {
+    printf "gluster_peer_connected{peer=\"%s\"} %d\n", $2, ($3 == "Connected") }'
+
+  if [ "$rc_status" -eq 0 ] && [ "$rc_pool" -eq 0 ] && printf '%s\n' "$heal" | grep -q '^Brick '; then
+    echo '# HELP gluster_metrics_last_success_timestamp_seconds Unix time of the last run in which every gluster command returned data.'
+    echo '# TYPE gluster_metrics_last_success_timestamp_seconds gauge'
+    echo "gluster_metrics_last_success_timestamp_seconds $(date +%s)"
+  fi
+} > "$tmp"
+
+chmod 0644 "$tmp"
+mv "$tmp" "$out"
+trap - EXIT
+root@gluster1:~# clear
+
+22:40:34
+root@gluster1:~# gluster volume start gv0 force
+volume start: gv0: success
+root@gluster1:~# gluster volume status gv0 | grep '^Brick'
+Brick gluster1:/data/glusterfs/brick1/vol   59306     0          Y       2268
+Brick gluster2:/data/glusterfs/brick1/vol   55888     0          Y       2268
+Brick gluster3:/data/glusterfs/brick2/vol   50531     0          Y       1554
+Brick gluster1:/data/glusterfs/brick2/vol   49452     0          Y       2284
+Brick gluster2:/data/glusterfs/brick2/vol   59864     0          Y       2284
+Brick gluster3:/data/glusterfs/brick1/vol   53744     0          Y       7558
+root@gluster1:~# gluster volume heal gv0 info summary | grep -E '^Brick|Total Number'
+Brick gluster1:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster2:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster3:/data/glusterfs/brick2/vol
+Total Number of entries: 0
+Brick gluster1:/data/glusterfs/brick2/vol
+Total Number of entries: 0
+Brick gluster2:/data/glusterfs/brick2/vol
+Total Number of entries: 0
+Brick gluster3:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+'
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster1:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+
+Launching heal operation to perform full self heal on volume gv0 has been successful
+Use heal info commands to check status.
+
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster1:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+root@gluster1:~# clear
+root@gluster1:~# gluster volume status gv0 | grep '^Brick gluster3'
+Brick gluster3:/data/glusterfs/brick2/vol   50531     0          Y       1554
+Brick gluster3:/data/glusterfs/brick1/vol   53744     0          Y       7558
+root@gluster1:~# gluster volume heal gv0 info summary | grep -E '^Brick|Total Number'
+Brick gluster1:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster2:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+Brick gluster3:/data/glusterfs/brick2/vol
+Total Number of entries: 0
+Brick gluster1:/data/glusterfs/brick2/vol
+Total Number of entries: 0
+Brick gluster2:/data/glusterfs/brick2/vol
+Total Number of entries: 0
+Brick gluster3:/data/glusterfs/brick1/vol
+Total Number of entries: 0
+root@gluster1:~# pid=$(gluster volume status gv0 | awk '/^Brick gluster3:\/data\/glusterfs\/brick1\/vol/ {print $NF}')
+echo "brick1 pid: $pid"
+kill -9 "$pid"
+brick1 pid: 7558
+bash: kill: (7558) - No such process
+root@gluster1:~# kill -9 "$pid"
+bash: kill: (7558) - No such process
+pid=$(gluster volume status gv0 | awk '/^Brick gluster3:\/data\/glusterfs\/brick1\/vol/ {print $NF}')
+root@gluster1:~# echo "brick1 pid: $pid"
+brick1 pid: 7558
+""
+bash: kill: (7558) - No such process
+
+Status of volume: gv0
+Gluster process                             TCP Port  RDMA Port  Online  Pid
+------------------------------------------------------------------------------
+Brick gluster1:/data/glusterfs/brick1/vol   59306     0          Y       2268
+Brick gluster2:/data/glusterfs/brick1/vol   55888     0          Y       2268
+Brick gluster3:/data/glusterfs/brick2/vol   50531     0          Y       1554
+Brick gluster1:/data/glusterfs/brick2/vol   49452     0          Y       2284
+Brick gluster2:/data/glusterfs/brick2/vol   59864     0          Y       2284
+Brick gluster3:/data/glusterfs/brick1/vol   53744     0          Y       7558
+Self-heal Daemon on localhost               N/A       N/A        Y       2301
+Self-heal Daemon on gluster3                N/A       N/A        Y       2081
+Self-heal Daemon on gluster2                N/A       N/A        Y       2301
+
+Task Status of Volume gv0
+------------------------------------------------------------------------------
+Task                 : Rebalance
+ID                   : None
+Status               : reset due to reset-brick
+
+
+bash: kill: (1554) - No such process
+root@gluster1:~# ./scripts/check-cluster.sh
+
+== peers ==
+UUID					Hostname 	State
+dafb797c-f2c6-4693-8fd0-b5877f34e70e	gluster2 	Connected
+a4727315-5cf8-47cb-a1a0-2ffbbb3586ae	gluster3 	Connected
+5b24c36c-3aa7-4ec2-9f94-67da01d45b4e	localhost	Connected
+
+== volume status: gv0 ==
+Status of volume: gv0
+Gluster process                             TCP Port  RDMA Port  Online  Pid
+------------------------------------------------------------------------------
+Brick gluster1:/data/glusterfs/brick1/vol   59306     0          Y       2268
+Brick gluster2:/data/glusterfs/brick1/vol   55888     0          Y       2268
+Brick gluster3:/data/glusterfs/brick2/vol   50531     0          Y       1554
+Brick gluster1:/data/glusterfs/brick2/vol   49452     0          Y       2284
+Brick gluster2:/data/glusterfs/brick2/vol   59864     0          Y       2284
+Brick gluster3:/data/glusterfs/brick1/vol   59600     0          Y       8966
+Self-heal Daemon on localhost               N/A       N/A        Y       2301
+Self-heal Daemon on gluster2                N/A       N/A        Y       2301
+Self-heal Daemon on gluster3                N/A       N/A        Y       2081
+
+Task Status of Volume gv0
+------------------------------------------------------------------------------
+Task                 : Rebalance
+ID                   : None
+Status               : reset due to reset-brick
+
+
+== heal summary: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster1:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+
+== split-brain entries: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster1:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster2:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+
+== selected options: gv0 ==
+cluster.quorum-type                      auto
+cluster.server-quorum-type               off
+cluster.self-heal-daemon                 on (DEFAULT)
+network.ping-timeout                     42 (DEFAULT)
+root@gluster1:~# exit
+Script done on 2026-10-28 22:58:50+00:00 [COMMAND_EXIT_CODE="0"]

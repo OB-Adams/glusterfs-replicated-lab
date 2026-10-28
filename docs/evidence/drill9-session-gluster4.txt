@@ -1,0 +1,1943 @@
+# Drill 9: monitoring and alerts, session log from gluster4
+# Captured 2026-10-28 with script(1), times UTC. Private addresses masked.
+# Cleaned for reading: terminal control codes removed, and the duplicate echoes the terminal
+# draws for pasted commands removed where detected, plus podman's image download progress bars. Output is unchanged.
+# gluster4 runs Prometheus and Grafana in Podman, captured the alert state from the Prometheus API, and wrote the test files.
+#
+
+Script started on 2026-10-28 21:44:50+00:00 [TERM="xterm-256color" TTY="/dev/pts/0" COLUMNS="162" LINES="48"]
+
+
+cat drill9-session-gluster4.txt
+
+[2026-10-28 21:45
+root@gluster4:~# clear
+root@gluster4:~# dnf -y install podman
+CentOS Stream 9 - BaseOS                                                                                                          3.6 kB/s |  22 kB     00:06
+CentOS Stream 9 - AppStream                                                                                                       2.0 kB/s |  23 kB     00:11
+CentOS Stream 9 - Extras packages                                                                                                 4.1 kB/s |  25 kB     00:06
+Package podman-6:5.8.5-2.el9.aarch64 is already installed.
+Dependencies resolved.
+Nothing to do.
+Complete!
+
+root@gluster4:~# cat > /opt/monitoring/prometheus/prometheus.yml <<'EOF'
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  - job_name: gluster-nodes
+    static_configs:
+      - targets: ['gluster1:9100', 'gluster2:9100', 'gluster3:9100']
+EOF
+root@gluster4:~# cat > /opt/monitoring/prometheus/rules/gluster.yml <<'EOF'
+groups:
+  - name: gluster
+    rules:
+      - alert: GlusterBrickDown
+        expr: max by (volume, brick) (gluster_brick_up) == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Brick {{ $labels.brick }} is offline"
+          description: "No server reports brick {{ $labels.brick }} of {{ $labels.volume }} online. Its replica set is running on two copies, and changes are queuing for heal."
+
+      - alert: GlusterHealBacklog
+        expr: max by (volume, brick) (gluster_heal_pending_entries) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value }} entries pending heal on {{ $labels.brick }}"
+          description: "Copies in a replica set of {{ $labels.volume }} have disagreed for more than two minutes."
+
+      - alert: GlusterSplitBrain
+        expr: max by (volume, brick) (gluster_heal_split_brain_entries) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Split-brain entries on {{ $labels.brick }}"
+          description: "No copy can be trusted automatically. See docs/failure-drills.md, drill 4."
+
+      - alert: GlusterExporterDown
+        expr: up{job="gluster-nodes"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cannot scrape {{ $labels.instance }}"
+          description: "The server is down, node_exporter has stopped, or the firewall blocks 9100."
+
+      - alert: GlusterMetricsStale
+        expr: time() - max by (instance) (gluster_metrics_last_success_timestamp_seconds) > 120
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gluster metrics on {{ $labels.instance }} are stale"
+          description: "gluster-metrics.sh has not completed successfully for over two minutes."
+root@gluster4:~# cat > /opt/monitoring/prometheus/rules/gluster.yml <<'EOF'
+groups:
+  - name: gluster
+    rules:
+      - alert: GlusterBrickDown
+        expr: max by (volume, brick) (gluster_brick_up) == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Brick {{ $labels.brick }} is offline"
+          description: "No server reports brick {{ $labels.brick }} of {{ $labels.volume }} online. Its replica set is running on two copies, and changes are queuing for heal."
+
+      - alert: GlusterHealBacklog
+        expr: max by (volume, brick) (gluster_heal_pending_entries) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value }} entries pending heal on {{ $labels.brick }}"
+          description: "Copies in a replica set of {{ $labels.volume }} have disagreed for more than two minutes."
+
+      - alert: GlusterSplitBrain
+        expr: max by (volume, brick) (gluster_heal_split_brain_entries) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Split-brain entries on {{ $labels.brick }}"
+          description: "No copy can be trusted automatically. See docs/failure-drills.md, drill 4."
+
+      - alert: GlusterExporterDown
+        expr: up{job="gluster-nodes"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cannot scrape {{ $labels.instance }}"
+          description: "The server is down, node_exporter has stopped, or the firewall blocks 9100."
+
+      - alert: GlusterMetricsStale
+        expr: time() - max by (instance) (gluster_metrics_last_success_timestamp_seconds) > 120
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gluster metrics on {{ $labels.instance }} are stale"
+          description: "gluster-metrics.sh has not completed successfully for over two minutes."
+EOF
+
+Trying to pull docker.io/prom/prometheus:v2.53.2...
+Getting image source signatures
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob fea56ff08967 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob 85dcb514c7c6 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob 85dcb514c7c6 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob 85dcb514c7c6 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob 85dcb514c7c6 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob 85dcb514c7c6 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob 85dcb514c7c6 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob 85dcb514c7c6 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob 85dcb514c7c6 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob 85dcb514c7c6 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying blob 2c2bf3a9a2b7 done   |
+Copying blob 6ce8b87a9754 done   |
+Copying blob 85dcb514c7c6 done   |
+Copying blob d2f8aae8d80e done   |
+Copying blob ab51a2e91924 done   |
+Copying blob d4e0019e0798 done   |
+Copying blob 03152202825f done   |
+Copying blob fea56ff08967 done   |
+Copying blob 6e62e059c561 done   |
+Copying blob 443ffcabdce2 done   |
+Copying blob 9b0b1f7ce48e done   |
+Copying blob 61a8e8c4c717 done   |
+Copying config b3542add95 done   |
+Copying config b3542add95 done   |
+Copying config b3542add95 done   |
+Copying config b3542add95 done   |
+Writing manifest to image destination
+Checking /etc/prometheus/prometheus.yml
+  SUCCESS: 1 rule files found
+ SUCCESS: /etc/prometheus/prometheus.yml is valid prometheus config file syntax
+
+Checking /etc/prometheus/rules/gluster.yml
+  SUCCESS: 5 rules found
+
+root@gluster4:~# cat > /opt/monitoring/grafana/provisioning/datasources/prometheus.yml <<'EOF'
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://localhost:9090
+    isDefault: true
+EOF
+
+cat > /opt/monitoring/grafana/provisioning/dashboards/gluster.yml <<'EOF'
+apiVersion: 1
+providers:
+  - name: gluster
+    folder: Gluster
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards
+root@gluster4:~# cat > /opt/monitoring/grafana/provisioning/datasources/prometheus.yml <<'EOF'
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://localhost:9090
+    isDefault: true
+EOF
+
+cat > /opt/monitoring/grafana/provisioning/dashboards/gluster.yml <<'EOF'
+apiVersion: 1
+providers:
+  - name: gluster
+    folder: Gluster
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards
+EOF
+root@gluster4:~# cat > /opt/monitoring/grafana/dashboards/gluster-gv0.json <<'EOF'
+{
+  "uid": "gluster-gv0",
+  "title": "Gluster gv0",
+  "tags": ["gluster"],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Bricks online",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "count(max by (brick) (gluster_brick_up) == 1) or vector(0)" } ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 6 } ] } }, "overrides": [] }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Entries pending heal",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "sum(max by (brick) (gluster_heal_pending_entries)) or vector(0)" } ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 } ] } }, "overrides": [] }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Split-brain entries",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "sum(max by (brick) (gluster_heal_split_brain_entries)) or vector(0)" } ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] }
+    },
+    {
+      "id": 4, "type": "stat", "title": "Firing alerts",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "count(ALERTS{alertstate=\"firing\"}) or vector(0)" } ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] }
+    },
+    {
+      "targets": [ { "refId": "A", "expr": "sum(max by (brick) (gluster_heal_split_brain_entries)) or vector(0)" } ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] }
+    },
+    {
+      "id": 4, "type": "stat", "title": "Firing alerts",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "count(ALERTS{alertstate=\"firing\"}) or vector(0)" } ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] }
+    },
+    {
+EOF
+root@gluster4:~# python3 -m json.tool /opt/monitoring/grafana/dashboards/gluster-gv0.json > /dev/null && echo "dashboard JSON ok"
+dashboard JSON ok
+root@gluster4:~# read -rsp 'Grafana admin password: ' GF_PW; echo
+Grafana admin password:
+root@gluster4:~# podman run -d --name prometheus --network host --restart=always \
+  -v /opt/monitoring/prometheus:/etc/prometheus:Z \
+  -v prometheus-data:/prometheus \
+  docker.io/prom/prometheus:v2.53.2 \
+  --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus
+podman run -d --name grafana --network host --restart=always \
+  -e GF_SECURITY_ADMIN_PASSWORD="$GF_PW" \
+  -v /opt/monitoring/grafana/provisioning:/etc/grafana/provisioning:Z \
+  -v /opt/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:Z \
+  -v grafana-data:/var/lib/grafana \
+  docker.io/grafana/grafana-oss:11.2.0
+76f7c511e60d3b17ea2c2acd179edee2c7fd5ced5da78dcd48a123bf8098d873
+Trying to pull docker.io/grafana/grafana-oss:11.2.0...
+Getting image source signatures
+Copying blob 15e31fbe4904 done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 1e825da9c63a done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 1e825da9c63a done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 1e825da9c63a done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 1e825da9c63a done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 1e825da9c63a done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 1e825da9c63a done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 1e825da9c63a done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 1e825da9c63a done   |
+Copying blob 15e31fbe4904 done   |
+Copying blob bca4290a9639 done   |
+Copying blob 35ffea0c044a done   |
+Copying blob fbbaca673c19 done   |
+Copying blob f257bec43f81 done   |
+Copying blob 73d7d01a1d2c done   |
+Copying blob 8ff0366d982d done   |
+Copying blob 1e825da9c63a done   |
+WARN[0048] Failed, retrying in 1s ... (1/3). Error: copying system image from manifest list: reading blob sha256:ffca16271da6414d512cae5e035ca10e9cd98a8a45ff9206eb346b3e41267037: Get "https://production.cloudfront.docker.com/registry-v2/docker/registry/v2/blobs/sha256/ff/ffca16271da6414d512cae5e035ca10e9cd98a8a45ff9206eb346b3e41267037/data?Expires=1793228851&Signature=SjamvIAHrJ6z3kExElcqIEnCHGEyP74BvjnFO9Hu98ax08hTXmn3cPhFSYd7pklTrZFDemzGhDVp9tL8ByXNWlGZ84XUxAiq0aTw6ACjfwZKzibayKCPI~VzHCnUvqzjQ1B0BK~f7rWsIg9Spn~da7qfJlXKgXvlPUElpnd~v3jRx99s0duAgoFaSRLmpl0eDAMTOmum7gCty9ijiiIdU~LzJjHk1C2coq~AeBX6EOX8RqPoBxZepZRlP8jTFcTpPoA2CAOfdpFH85h23-Z0mgPcV1yiTu5xzQQ5zL2pP4enmFZ~OJvUXpGA-rD65elxxhx1vFZsiUV~vCRI2In4ZQ__&Key-Pair-Id=K31B9XRZB58O8Z": dial tcp [2600:9000:20d4:f400:9:4855:aac0:93a1]:443: connect: network is unreachable
+Getting image source signatures
+Copying blob 15e31fbe4904 skipped: already exists
+Copying blob 15e31fbe4904 skipped: already exists
+Copying blob 15e31fbe4904 skipped: already exists
+Copying blob 8ff0366d982d skipped: already exists
+Copying blob fbbaca673c19 skipped: already exists
+Copying blob 15e31fbe4904 skipped: already exists
+Copying blob 8ff0366d982d skipped: already exists
+Copying blob fbbaca673c19 skipped: already exists
+Copying blob 1e825da9c63a skipped: already exists
+Copying blob 15e31fbe4904 skipped: already exists
+Copying blob 8ff0366d982d skipped: already exists
+Copying blob fbbaca673c19 skipped: already exists
+Copying blob 1e825da9c63a skipped: already exists
+Copying blob 35ffea0c044a skipped: already exists
+Copying blob 73d7d01a1d2c skipped: already exists
+Copying blob f257bec43f81 skipped: already exists
+Copying blob bca4290a9639 skipped: already exists
+Copying blob 15e31fbe4904 skipped: already exists
+Copying blob 8ff0366d982d skipped: already exists
+Copying blob fbbaca673c19 skipped: already exists
+Copying blob 1e825da9c63a skipped: already exists
+Copying blob 35ffea0c044a skipped: already exists
+Copying blob 73d7d01a1d2c skipped: already exists
+Copying blob f257bec43f81 skipped: already exists
+Copying blob bca4290a9639 skipped: already exists
+Copying blob 15e31fbe4904 skipped: already exists
+Copying blob 8ff0366d982d skipped: already exists
+Copying blob fbbaca673c19 skipped: already exists
+Copying blob 1e825da9c63a skipped: already exists
+Copying blob 35ffea0c044a skipped: already exists
+Copying blob 73d7d01a1d2c skipped: already exists
+Copying blob f257bec43f81 skipped: already exists
+Copying blob bca4290a9639 skipped: already exists
+Copying blob 15e31fbe4904 skipped: already exists
+Copying blob 8ff0366d982d skipped: already exists
+Copying blob fbbaca673c19 skipped: already exists
+Copying blob 1e825da9c63a skipped: already exists
+Copying blob 35ffea0c044a skipped: already exists
+Copying blob 73d7d01a1d2c skipped: already exists
+Copying blob f257bec43f81 skipped: already exists
+Copying blob ffca16271da6 done   |
+Copying blob bca4290a9639 skipped: already exists
+Copying blob 15e31fbe4904 skipped: already exists
+Copying blob 8ff0366d982d skipped: already exists
+Copying blob fbbaca673c19 skipped: already exists
+Copying blob 1e825da9c63a skipped: already exists
+Copying blob 35ffea0c044a skipped: already exists
+Copying blob 73d7d01a1d2c skipped: already exists
+Copying blob f257bec43f81 skipped: already exists
+Copying blob ffca16271da6 done   |
+Copying blob 27a3c8ebdfbf done   |
+Copying blob bca4290a9639 skipped: already exists
+Copying blob 15e31fbe4904 skipped: already exists
+Copying blob 8ff0366d982d skipped: already exists
+Copying blob fbbaca673c19 skipped: already exists
+Copying blob 1e825da9c63a skipped: already exists
+Copying blob 35ffea0c044a skipped: already exists
+Copying blob 73d7d01a1d2c skipped: already exists
+Copying blob f257bec43f81 skipped: already exists
+Copying blob ffca16271da6 done   |
+Copying blob 27a3c8ebdfbf done   |
+Copying blob bca4290a9639 skipped: already exists
+Copying blob 15e31fbe4904 skipped: already exists
+Copying blob 8ff0366d982d skipped: already exists
+Copying blob fbbaca673c19 skipped: already exists
+Copying blob 1e825da9c63a skipped: already exists
+Copying blob 35ffea0c044a skipped: already exists
+Copying blob 73d7d01a1d2c skipped: already exists
+Copying blob f257bec43f81 skipped: already exists
+Copying blob ffca16271da6 done   |
+Copying blob 27a3c8ebdfbf done   |
+Copying blob bca4290a9639 skipped: already exists
+Copying config 9f82e9bb37 done   |
+Copying config 9f82e9bb37 done   |
+Copying config 9f82e9bb37 done   |
+Writing manifest to image destination
+b272bbb7856f7cfa40b878ef04a3a4a23663b643591f98eda6080106dc64284a
+root@gluster4:~# unset GF_PW
+systemctl enable --now podman-restart.service
+firewall-cmd --permanent --add-port=9090/tcp --add-port=3000/tcp
+firewall-cmd --reload
+podman ps
+Created symlink /etc/systemd/system/default.target.wants/podman-restart.service → /usr/lib/systemd/system/podman-restart.service.
+success
+success
+CONTAINER ID  IMAGE                                 COMMAND               CREATED         STATUS         PORTS       NAMES
+76f7c511e60d  docker.io/prom/prometheus:v2.53.2     --config.file=/et...  2 minutes ago   Up 2 minutes   9090/tcp    prometheus
+b272bbb7856f  docker.io/grafana/grafana-oss:11.2.0                        30 seconds ago  Up 30 seconds  3000/tcp    grafana
+root@gluster4:~# curl -s gluster1:9100/metrics | grep '^gluster_'
+gluster_brick_up{brick="gluster1:/data/glusterfs/brick1/vol",host="gluster1",volume="gv0"} 1
+gluster_brick_up{brick="gluster1:/data/glusterfs/brick2/vol",host="gluster1",volume="gv0"} 1
+gluster_brick_up{brick="gluster2:/data/glusterfs/brick1/vol",host="gluster2",volume="gv0"} 1
+gluster_brick_up{brick="gluster2:/data/glusterfs/brick2/vol",host="gluster2",volume="gv0"} 1
+gluster_brick_up{brick="gluster3:/data/glusterfs/brick1/vol",host="gluster3",volume="gv0"} 1
+gluster_brick_up{brick="gluster3:/data/glusterfs/brick2/vol",host="gluster3",volume="gv0"} 1
+gluster_heal_pending_entries{brick="gluster1:/data/glusterfs/brick1/vol",volume="gv0"} 0
+gluster_heal_pending_entries{brick="gluster1:/data/glusterfs/brick2/vol",volume="gv0"} 0
+gluster_heal_pending_entries{brick="gluster2:/data/glusterfs/brick1/vol",volume="gv0"} 0
+gluster_heal_pending_entries{brick="gluster2:/data/glusterfs/brick2/vol",volume="gv0"} 0
+gluster_heal_pending_entries{brick="gluster3:/data/glusterfs/brick1/vol",volume="gv0"} 0
+gluster_heal_pending_entries{brick="gluster3:/data/glusterfs/brick2/vol",volume="gv0"} 0
+gluster_heal_split_brain_entries{brick="gluster1:/data/glusterfs/brick1/vol",volume="gv0"} 0
+gluster_heal_split_brain_entries{brick="gluster1:/data/glusterfs/brick2/vol",volume="gv0"} 0
+gluster_heal_split_brain_entries{brick="gluster2:/data/glusterfs/brick1/vol",volume="gv0"} 0
+gluster_heal_split_brain_entries{brick="gluster2:/data/glusterfs/brick2/vol",volume="gv0"} 0
+gluster_heal_split_brain_entries{brick="gluster3:/data/glusterfs/brick1/vol",volume="gv0"} 0
+gluster_heal_split_brain_entries{brick="gluster3:/data/glusterfs/brick2/vol",volume="gv0"} 0
+gluster_metrics_last_success_timestamp_seconds 1.793225972e+09
+gluster_peer_connected{peer="gluster2"} 1
+gluster_peer_connected{peer="gluster3"} 1
+gluster_peer_connected{peer="localhost"} 1
+root@gluster4:~# clear
+'
+gluster_brick_up{brick="gluster1:/data/glusterfs/brick1/vol",host="gluster1",volume="gv0"} 1
+gluster_brick_up{brick="gluster1:/data/glusterfs/brick2/vol",host="gluster1",volume="gv0"} 1
+gluster_brick_up{brick="gluster2:/data/glusterfs/brick1/vol",host="gluster2",volume="gv0"} 1
+gluster_brick_up{brick="gluster2:/data/glusterfs/brick2/vol",host="gluster2",volume="gv0"} 1
+gluster_brick_up{brick="gluster3:/data/glusterfs/brick1/vol",host="gluster3",volume="gv0"} 1
+gluster_brick_up{brick="gluster3:/data/glusterfs/brick2/vol",host="gluster3",volume="gv0"} 1
+gluster_heal_pending_entries{brick="gluster1:/data/glusterfs/brick1/vol",volume="gv0"} 0
+gluster_heal_pending_entries{brick="gluster1:/data/glusterfs/brick2/vol",volume="gv0"} 0
+gluster_heal_pending_entries{brick="gluster2:/data/glusterfs/brick1/vol",volume="gv0"} 0
+gluster_heal_pending_entries{brick="gluster2:/data/glusterfs/brick2/vol",volume="gv0"} 0
+gluster_heal_pending_entries{brick="gluster3:/data/glusterfs/brick1/vol",volume="gv0"} 0
+gluster_heal_pending_entries{brick="gluster3:/data/glusterfs/brick2/vol",volume="gv0"} 0
+gluster_heal_split_brain_entries{brick="gluster1:/data/glusterfs/brick1/vol",volume="gv0"} 0
+gluster_heal_split_brain_entries{brick="gluster1:/data/glusterfs/brick2/vol",volume="gv0"} 0
+gluster_heal_split_brain_entries{brick="gluster2:/data/glusterfs/brick1/vol",volume="gv0"} 0
+gluster_heal_split_brain_entries{brick="gluster2:/data/glusterfs/brick2/vol",volume="gv0"} 0
+gluster_heal_split_brain_entries{brick="gluster3:/data/glusterfs/brick1/vol",volume="gv0"} 0
+gluster_heal_split_brain_entries{brick="gluster3:/data/glusterfs/brick2/vol",volume="gv0"} 0
+gluster_metrics_last_success_timestamp_seconds 1.793226065e+09
+gluster_peer_connected{peer="gluster2"} 1
+gluster_peer_connected{peer="gluster3"} 1
+gluster_peer_connected{peer="localhost"} 1
+root@gluster4:~# curl -s localhost:9090/api/v1/alerts | python3 -m json.tool > ~/drill9-alerts-1-baseline.json
+root@gluster4:~# mkdir -p /mnt/gv0/drill9
+for i in $(seq 1 300); do head -c 4096 /dev/urandom > /mnt/gv0/drill9/f$i.bin; sleep 1; done &
+[1] 3341
+
+root@gluster4:~# curl -s localhost:9090/api/v1/alerts | python3 -m json.tool > ~/drill9-alerts-3-both-firing.json
+root@gluster4:~# mkdir -p /mnt/gv0/drill9
+for i in $(seq 1 300); do head -c 4096 /dev/urandom > /mnt/gv0/drill9/f$i.bin; sleep 1; done &
+[1]+  Done                    for i in $(seq 1 300);
+do
+    head -c 4096 /dev/urandom > /mnt/gv0/drill9/f$i.bin; sleep 1;
+done
+[1] 3955
+
+[1]+  Done                    for i in $(seq 1 300);
+do
+    head -c 4096 /dev/urandom > /mnt/gv0/drill9/f$i.bin; sleep 1;
+done
+root@gluster4:~# jobs
+root@gluster4:~# find /mnt/gv0/drill9 -type f | wc -l
+300
+root@gluster4:~# exit
+Script done on 2026-10-28 22:58:57+00:00 [COMMAND_EXIT_CODE="0"]

@@ -1,0 +1,7 @@
+[Unit]
+Description=Write Gluster metrics for node_exporter
+After=glusterd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/gluster-metrics.sh gv0

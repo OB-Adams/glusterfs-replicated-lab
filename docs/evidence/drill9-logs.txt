@@ -1,0 +1,48 @@
+# Drill 9: Gluster logs for the two brick crashes
+# Captured 2026-10-28, times UTC. Private addresses masked.
+# gv0-client-5 is gluster3:/data/glusterfs/brick1/vol, the crashed brick (sixth in volume info), in set 2 (gv0-replicate-1).
+# Source: glustershd.log on gluster1 (its self-heal daemon is a client of every brick), and cmd_history.log on gluster1.
+# The brick log on gluster3 was not captured.
+
+## Commands that changed the volume, gluster1 (cmd_history.log)
+[2026-10-28 22:40:46.449726 +0000]  : volume start gv0 force : SUCCESS
+[2026-10-28 22:41:19.846103 +0000]  : volume heal gv0 full : SUCCESS
+
+## Incident 1: crash at 22:35:49, start force at 22:40:46
+# Connection events for gv0-client-5 (the daemon retries every few seconds while the brick is down; first lines shown, then the reconnect)
+[2026-10-28 22:35:49.726987 +0000] W [socket.c:751:__socket_rwv] 0-gv0-client-5: readv on 192.168.x.x:58784 failed (Input/output error)
+[2026-10-28 22:35:49.727218 +0000] E [socket.c:222:ssl_dump_error_stack] 0-gv0-client-5:   error:0A000126:SSL routines::unexpected eof while reading
+[2026-10-28 22:35:49.728127 +0000] I [MSGID: 114018] [client.c:2242:client_rpc_notify] 0-gv0-client-5: disconnected from client, process will keep trying to connect glusterd until brick's port is available [{conn-name=gv0-client-5}] 
+[2026-10-28 22:35:52.735938 +0000] I [socket.c:4107:ssl_setup_connection_params] 0-gv0-client-5: SSL support for MGMT is ENABLED IO path is ENABLED certificate depth is 1 for peer 192.168.x.x:58784
+[2026-10-28 22:35:52.753496 +0000] E [MSGID: 114058] [client-handshake.c:946:client_query_portmap_cbk] 0-gv0-client-5: failed to get the port number for remote subvolume. Please run gluster volume status on server to see if brick process is running [] 
+[2026-10-28 22:35:55.763236 +0000] I [socket.c:4107:ssl_setup_connection_params] 0-gv0-client-5: SSL support for MGMT is ENABLED IO path is ENABLED certificate depth is 1 for peer 192.168.x.x:24007
+[2026-10-28 22:37:56.877192 +0000] I [socket.c:835:__socket_shutdown] 0-gv0-client-5: intentional socket shutdown(14)
+[2026-10-28 22:40:49.284635 +0000] I [rpc-clnt.c:1899:rpc_clnt_reconfig] 0-gv0-client-5: changing port to 53744 (from 0)
+[2026-10-28 22:40:49.293702 +0000] I [MSGID: 114057] [client-handshake.c:871:select_server_supported_programs] 0-gv0-client-5: Using Program [{Program-name=GlusterFS 4.x v1}, {Num=1298437}, {Version=400}] 
+[2026-10-28 22:40:49.294776 +0000] I [MSGID: 114046] [client-handshake.c:621:client_setvolume_cbk] 0-gv0-client-5: Connected, attached to remote volume [{conn-name=gv0-client-5}, {remote_subvol=/data/glusterfs/brick1/vol}] 
+[2026-10-28 22:40:49.301070 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-5: remote operation failed. [{path=<gfid:d211626f-1e60-4b05-8fae-f2886ed58ed5>}, {gfid=d211626f-1e60-4b05-8fae-f2886ed58ed5}, {errno=2}, {error=No such file or directory}] 
+[2026-10-28 22:40:49.311070 +0000] W [MSGID: 114031] [client-rpc-fops_v2.c:2561:client4_0_lookup_cbk] 0-gv0-client-5: remote operation failed. [{path=<gfid:4ec16b66-4c58-4993-aede-e90b0deeae43>}, {gfid=4ec16b66-4c58-4993-aede-e90b0deeae43}, {errno=2}, {error=No such file or directory}] 
+# Heals completed by gluster1's self-heal daemon (the other servers' daemons may have healed more): 72 data, 76 metadata, 0 entry; first and last shown
+[2026-10-28 22:40:49.411666 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-1: Completed metadata selfheal on 212b49a4-ad8b-4e41-960a-ea3ca099527a. sources=[0] 1  sinks=2  
+[2026-10-28 22:40:49.429353 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-1: Completed data selfheal on dca5cd4d-4e56-4153-ab66-5cca31724426. sources=[0] 1  sinks=2  
+...
+[2026-10-28 22:40:51.115938 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-1: Completed metadata selfheal on 60d28842-6572-4e25-975c-f00681193063. sources=[0] 1  sinks=2  
+[2026-10-28 22:40:52.152174 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-1: Completed metadata selfheal on d211626f-1e60-4b05-8fae-f2886ed58ed5. sources=[0] 1  sinks=2  
+
+## Incident 2: crash at 22:44:08, start force at about 22:54
+# Connection events for gv0-client-5 (the daemon retries every few seconds while the brick is down; first lines shown, then the reconnect)
+[2026-10-28 22:44:08.590561 +0000] E [socket.c:222:ssl_dump_error_stack] 0-gv0-client-5:   error:0A000126:SSL routines::unexpected eof while reading
+[2026-10-28 22:44:08.590883 +0000] I [MSGID: 114018] [client.c:2242:client_rpc_notify] 0-gv0-client-5: disconnected from client, process will keep trying to connect glusterd until brick's port is available [{conn-name=gv0-client-5}] 
+[2026-10-28 22:44:11.595621 +0000] I [socket.c:4107:ssl_setup_connection_params] 0-gv0-client-5: SSL support for MGMT is ENABLED IO path is ENABLED certificate depth is 1 for peer 192.168.x.x:53744
+[2026-10-28 22:44:11.619573 +0000] E [MSGID: 114058] [client-handshake.c:946:client_query_portmap_cbk] 0-gv0-client-5: failed to get the port number for remote subvolume. Please run gluster volume status on server to see if brick process is running [] 
+[2026-10-28 22:44:14.625504 +0000] I [socket.c:4107:ssl_setup_connection_params] 0-gv0-client-5: SSL support for MGMT is ENABLED IO path is ENABLED certificate depth is 1 for peer 192.168.x.x:24007
+[2026-10-28 22:45:30.342767 +0000] I [socket.c:835:__socket_shutdown] 0-gv0-client-5: intentional socket shutdown(14)
+[2026-10-28 22:54:01.703207 +0000] I [rpc-clnt.c:1899:rpc_clnt_reconfig] 0-gv0-client-5: changing port to 59600 (from 0)
+[2026-10-28 22:54:01.712289 +0000] I [MSGID: 114057] [client-handshake.c:871:select_server_supported_programs] 0-gv0-client-5: Using Program [{Program-name=GlusterFS 4.x v1}, {Num=1298437}, {Version=400}] 
+[2026-10-28 22:54:01.713315 +0000] I [MSGID: 114046] [client-handshake.c:621:client_setvolume_cbk] 0-gv0-client-5: Connected, attached to remote volume [{conn-name=gv0-client-5}, {remote_subvol=/data/glusterfs/brick1/vol}] 
+# Heals completed by gluster1's self-heal daemon (the other servers' daemons may have healed more): 64 data, 0 metadata, 0 entry; first and last shown
+[2026-10-28 22:54:01.742933 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-1: Completed data selfheal on 996b1a78-9a66-406b-a285-bbb6ec6402d2. sources=[0] 1  sinks=2  
+[2026-10-28 22:54:01.764260 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-1: Completed data selfheal on 2726eaaa-a638-4a5c-b783-2cc7451ffa6f. sources=[0] 1  sinks=2  
+...
+[2026-10-28 22:54:02.858879 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-1: Completed data selfheal on 0750a85f-cdc5-4429-b587-c0e40249bc21. sources=[0] 1  sinks=2  
+[2026-10-28 22:54:02.891552 +0000] I [MSGID: 108026] [afr-self-heal-common.c:1758:afr_log_selfheal] 0-gv0-replicate-1: Completed data selfheal on 47a33ab5-c77b-4a64-ac92-670d6bad94bd. sources=[0] 1  sinks=2  

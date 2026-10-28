@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  - job_name: gluster-nodes
+    static_configs:
+      - targets: ['gluster1:9100', 'gluster2:9100', 'gluster3:9100']

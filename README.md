@@ -15,7 +15,7 @@ This is phase 1 of a storage study. Phase 2 will rebuild the same VMs as a CephF
 | Milestone 2b: `replace-brick` to a new disk | Complete |
 | Milestone 2c: expansion to 2 x 3 and rebalance | Complete |
 | Milestone 3a: `auth.allow` and mutual TLS | Complete |
-| Milestone 3b: monitoring and alerts | Planned |
+| Milestone 3b: monitoring and alerts | Complete |
 | `fio` baseline | Planned |
 | Ansible automation of the build | Planned |
 | CephFS phase and comparison | Planned |
@@ -43,6 +43,7 @@ Upstream GlusterFS development has slowed and Red Hat's commercial Gluster Stora
 - A brick move drill: the brick on one server moved to a new disk with `replace-brick` while a client keeps writing, then filled by the self-heal daemon.
 - An expansion drill: a second replica set added with `add-brick`, file placement traced through the hash layout on the bricks, a rebalance that skipped files on the free-space rule, and a forced rebalance.
 - Access control and encryption: client addresses restricted with `auth.allow`, and mutual TLS with a lab certificate authority on both the management and data planes, with clients authorised by certificate name.
+- Monitoring: brick, heal and peer metrics from each server through `node_exporter`, Prometheus and Grafana on the client VM with a provisioned dashboard, and five alert rules, two of them exercised by crashing a brick.
 - Helper scripts for health checks, latency-measuring writers and brick comparison.
 
 ## Architecture
@@ -66,7 +67,7 @@ flowchart LR
     N1 <-->|"24007/tcp: management"| N3
 ```
 
-More diagrams (write path, availability states) are in [docs/architecture.md](docs/architecture.md).
+More diagrams (write path, availability states, monitoring) are in [docs/architecture.md](docs/architecture.md).
 
 ### How it works
 
@@ -101,6 +102,7 @@ glusterfs-replicated-lab/
 │   ├── expansion.md
 │   ├── failure-drills.md
 │   ├── milestones.md
+│   ├── monitoring.md
 │   ├── security.md
 │   ├── troubleshooting.md
 │   └── evidence/
@@ -123,11 +125,32 @@ glusterfs-replicated-lab/
 │       ├── drill7-session-gluster2.txt
 │       ├── drill7-session-gluster3.txt
 │       ├── drill7-session-gluster4.txt
-│       └── drill8-logs.txt
+│       ├── drill8-logs.txt
+│       ├── drill9-alerts.txt
+│       ├── drill9-logs.txt
+│       ├── drill9-session-gluster1.txt
+│       ├── drill9-session-gluster2.txt
+│       ├── drill9-session-gluster3.txt
+│       └── drill9-session-gluster4.txt
+├── monitoring/
+│   ├── README.md
+│   ├── grafana/
+│   │   ├── dashboards/gluster-gv0.json
+│   │   └── provisioning/
+│   │       ├── dashboards/gluster.yml
+│   │       └── datasources/prometheus.yml
+│   ├── prometheus/
+│   │   ├── prometheus.yml
+│   │   └── rules/gluster.yml
+│   └── systemd/
+│       ├── gluster-metrics.service
+│       ├── gluster-metrics.timer
+│       └── node_exporter.service
 ├── scripts/
 │   ├── check-cluster.sh
 │   ├── compare-bricks.sh
-│   └── drill-writer.sh
+│   ├── drill-writer.sh
+│   └── gluster-metrics.sh
 └── screenshots/
     ├── README.md
     ├── 01-brick-layout-lvm-xfs-selinux.png
@@ -165,7 +188,17 @@ glusterfs-replicated-lab/
     ├── 31-drill8-no-certificate-refused.png
     ├── 32-drill8-rogue-certificate-refused.png
     ├── 33-drill8-wrong-cn-refused.png
-    └── 34-drill8-valid-mount.png
+    ├── 34-drill8-valid-mount.png
+    ├── 35-drill9-gluster-metrics.png
+    ├── 36-drill9-prometheus-targets.png
+    ├── 37-drill9-alert-rules.png
+    ├── 38-drill9-dashboard-healthy.png
+    ├── 39-drill9-brick-killed.png
+    ├── 40-drill9-alerts-firing.png
+    ├── 41-drill9-dashboard-incident.png
+    ├── 42-drill9-brick-recovered.png
+    ├── 43-drill9-dashboard-recovered.png
+    └── 44-drill9-set-digests.png
 ```
 
 ## Prerequisites
@@ -207,6 +240,8 @@ The behaviour recorded in the drills applies to this OS release and Gluster vers
 | TLS files, from milestone 3a | `/etc/pki/tls/glusterfs.key`, `glusterfs.pem` and `glusterfs.ca` on every machine |
 | Management TLS switch | `/var/lib/glusterd/secure-access` on every machine |
 | Access lists | `auth.allow`: the four lab addresses; `auth.ssl-allow`: `gluster1,gluster2,gluster3,gluster4` |
+| Metrics, from milestone 3b | `node_exporter` on 9100 (open to `gluster4` only), `gluster-metrics.sh` every 30 s via `gluster-metrics.timer`, textfile directory `/var/lib/node_exporter/textfile` |
+| Monitoring on `gluster4` | Prometheus on 9090 and Grafana on 3000, Podman containers configured from `/opt/monitoring` ([monitoring/](monitoring)) |
 
 Disk and pool sizes are not fixed by this lab. Size them to your disks, and keep the thin LV's virtual size below the pool size so the pool cannot be overcommitted by accident.
 
@@ -253,13 +288,19 @@ The drills in [docs/failure-drills.md](docs/failure-drills.md), [docs/brick-repl
 ./scripts/check-cluster.sh gv0                                   # on a server: pool, bricks, heal and quorum summary
 ./scripts/drill-writer.sh /mnt/gv0/test 300 0.5 latency.log      # on the client: steady writes with per-write latency
 ./scripts/compare-bricks.sh /data/glusterfs/brick1/vol/test      # on each server: file count and combined checksum
+cat /var/lib/node_exporter/textfile/gluster.prom                 # on a server: the Gluster metrics last written
+curl -s gluster1:9100/metrics | grep '^gluster_'                 # on gluster4: what Prometheus scrapes
+curl -s localhost:9090/api/v1/alerts | python3 -m json.tool      # on gluster4: current alert state
 ```
+
+The dashboard is at `http://<gluster4>:3000` (Dashboards → Gluster → Gluster gv0) and Prometheus at `http://<gluster4>:9090`.
 
 ## Security considerations
 
-- SELinux is enforcing and firewalld is on. Only the predefined `glusterfs` firewalld service is opened on the servers.
+- SELinux is enforcing and firewalld is on. On the servers, only the predefined `glusterfs` service is open, plus 9100 for metrics from `gluster4` only.
 - All Gluster traffic uses mutual TLS with a lab certificate authority, on the management plane (`glusterd`, 24007) and the data plane (brick ports). Clients must hold a certificate signed by the lab CA, and their certificate name must be on `auth.ssl-allow`. Client addresses are also restricted with `auth.allow`. Details and the refusal tests are in [docs/security.md](docs/security.md).
 - The lab CA's private key stays on `gluster1` and is not in this repository. The certificates expire on 2027-10-28.
+- Prometheus (9090) and Grafana (3000) on `gluster4` use plain HTTP, and Prometheus has no authentication. The Grafana admin password was entered at a prompt and is not stored in any file.
 - Lab commands are run as root or with `sudo` for convenience. A real deployment should separate administrative access.
 - The split-brain drill deliberately disables quorum and self-heal. That configuration is for a throwaway file in a lab and must be reverted afterwards.
 
@@ -461,21 +502,63 @@ Raw command output and log excerpts from the drills are in [docs/evidence](docs/
 
 *With its own certificate the client mounts over TLS, writes a file, and the `drill7` digest is unchanged.*
 
+### Drill 9: monitoring and alerts ([details](docs/monitoring.md))
+
+![Gluster metrics served by an exporter](screenshots/35-drill9-gluster-metrics.png)
+
+*The `gluster_` metrics served by `gluster1`'s `node_exporter`: six bricks up, heal and split-brain counts at 0, peers connected.*
+
+![Prometheus targets](screenshots/36-drill9-prometheus-targets.png)
+
+*Prometheus scraping the three servers, all `UP`.*
+
+![Alert rules loaded](screenshots/37-drill9-alert-rules.png)
+
+*The five Gluster alert rules loaded, all inactive.*
+
+![Dashboard before the incident](screenshots/38-drill9-dashboard-healthy.png)
+
+*The provisioned Grafana dashboard before the crash: 6 bricks online, nothing pending, no alerts.*
+
+![A brick process killed](screenshots/39-drill9-brick-killed.png)
+
+*`gluster3`'s set 2 brick process killed with `kill -9`, and `volume status` showing it offline.*
+
+![Both alerts firing](screenshots/40-drill9-alerts-firing.png)
+
+*Prometheus with `GlusterBrickDown` firing for the crashed brick and `GlusterHealBacklog` firing for the two surviving copies in its set.*
+
+![Dashboard during an outage](screenshots/41-drill9-dashboard-incident.png)
+
+*The dashboard during the second crash: 5 bricks online, the brick row red, the backlog rising, three alerts firing. The first outage is visible earlier on the time axis.*
+
+![Brick recovered](screenshots/42-drill9-brick-recovered.png)
+
+*After `volume start gv0 force`, the brick is online again and every heal count is 0.*
+
+![Dashboard after recovery](screenshots/43-drill9-dashboard-recovered.png)
+
+*After recovery: 6 bricks online, nothing pending, no alerts, and both outages and their heal backlogs visible on the time axis.*
+
+![Set 2 copies compared](screenshots/44-drill9-set-digests.png)
+
+*The set 2 copies of `drill9` on all three servers, including the brick that crashed: 149 files with the same digest.*
+
 ## Known limitations
 
 - Everything runs on one physical machine with shared storage and virtual networking. Latency and throughput numbers are only meaningful relative to each other, not as absolute figures.
 - Each timing measurement in the drills is a single run. They show the effect, not a statistical result.
 - In drill 2, the observed stalls were longer than the configured `network.ping-timeout`. The cause is not established.
 - In drill 3, the documentation describes loss of client quorum as making the replica set read-only. On the tested version the mount became unusable for reads as well. The exact log lines are recorded and the version-specific behaviour has not been investigated further.
-- No monitoring and no automation yet.
+- No automation yet.
+- Alerts are visible in Prometheus and Grafana but are not delivered anywhere: there is no Alertmanager.
 - Only one OS and one Gluster version were tested.
 
 ## Future improvements
 
-1. Prometheus metrics, a dashboard, and alerts on heal backlog and brick state.
-2. `fio` baseline with fixed profiles, reused unchanged in phase 2.
-3. Ansible role that rebuilds the whole lab idempotently.
-4. Phase 2: CephFS on the same VMs, the same failure drills, and a written comparison.
+1. `fio` baseline with fixed profiles, reused unchanged in phase 2.
+2. Ansible role that rebuilds the whole lab idempotently.
+3. Phase 2: CephFS on the same VMs, the same failure drills, and a written comparison.
 
 ## References
 
@@ -489,4 +572,4 @@ Raw command output and log excerpts from the drills are in [docs/evidence](docs/
 
 ## TL;DR
 
-Three VMs form a GlusterFS volume (`gv0`) on LVM thin + XFS bricks, replica 3 and since expanded to two replica sets (2 x 3), mounted from a fourth VM with the FUSE client. Eight drills were run and recorded: a graceful node loss heals by itself, a hard failure stalls clients until `network.ping-timeout` expires, losing two of three nodes makes the volume unusable on the tested version, a split-brain needs a deliberate human choice of source brick, a destroyed brick rebuilt with `reset-brick` comes back byte-identical after a manual `heal full`, a brick moved to a new disk with `replace-brick` heals by itself in about 36 seconds with no stall for a writing client, an expansion to 2 x 3 needed a forced rebalance after the first one skipped 320 files on its free-space check, and with mutual TLS on, clients with no certificate, a self-signed one, or a certificate for a name not on the allow list are all refused. All traffic is now encrypted. Evidence is in `docs/evidence`, procedures in `docs/`. Not done yet: monitoring, benchmarks, Ansible, and the CephFS comparison.
+Three VMs form a GlusterFS volume (`gv0`) on LVM thin + XFS bricks, replica 3 and since expanded to two replica sets (2 x 3), mounted from a fourth VM with the FUSE client. Nine drills were run and recorded: a graceful node loss heals by itself, a hard failure stalls clients until `network.ping-timeout` expires, losing two of three nodes makes the volume unusable on the tested version, a split-brain needs a deliberate human choice of source brick, a destroyed brick rebuilt with `reset-brick` comes back byte-identical after a manual `heal full`, a brick moved to a new disk with `replace-brick` heals by itself in about 36 seconds with no stall for a writing client, an expansion to 2 x 3 needed a forced rebalance after the first one skipped 320 files on its free-space check, and with mutual TLS on, clients with no certificate, a self-signed one, or a certificate for a name not on the allow list are all refused. All traffic is now encrypted. Prometheus and Grafana watch brick and heal state, and a crashed brick raised a brick-down and a heal-backlog alert within about a minute and two and a half minutes, both resolving after recovery. Evidence is in `docs/evidence`, procedures in `docs/`. Not done yet: benchmarks, Ansible, and the CephFS comparison.
