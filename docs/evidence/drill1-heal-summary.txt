@@ -1,7 +1,5 @@
 # Drill 1: graceful shutdown of gluster3 during writes
 # Output pasted from the lab session. Commands were run as root on gluster2.
-# Final verification of file counts and checksums across bricks was performed
-# but its output was not archived.
 
 ## During the outage (gluster3 powered off, writer still running)
 root@gluster2:~# gluster volume heal gv0 info summary

@@ -1,6 +1,6 @@
 # glusterfs-replicated-lab
 
-A hands-on GlusterFS lab: a three-node replica 3 volume built from scratch on Linux VMs, followed by documented failure drills (graceful node loss, hard failure, quorum loss and split-brain) brick replacement drills, and an expansion to a distributed-replicated volume with rebalancing, with captured evidence and operational notes.
+A hands-on GlusterFS lab: a three-node replica 3 volume built from scratch on Linux VMs and taken through nine recorded drills. They cover failure (graceful node loss, hard failure, quorum loss and split-brain), brick rebuild and replacement, expansion to a distributed-replicated volume with rebalancing, mutual TLS with certificate-based client authorisation, and Prometheus and Grafana monitoring with alerts. Every drill has captured evidence and operational notes.
 
 This is phase 1 of a storage study. Phase 2 will rebuild the same VMs as a CephFS cluster and compare the two systems under the same tests.
 
@@ -9,18 +9,32 @@ This is phase 1 of a storage study. Phase 2 will rebuild the same VMs as a CephF
 | Item | Status |
 |---|---|
 | Milestone 1: replicated cluster and failure drills | Complete |
-| Raw evidence (command output and log excerpts) | Added in [docs/evidence](docs/evidence) |
-| Screenshots | Added in [screenshots/](screenshots) (see [Screenshots and evidence](#screenshots-and-evidence)) |
 | Milestone 2a: brick rebuild with `reset-brick` | Complete |
 | Milestone 2b: `replace-brick` to a new disk | Complete |
 | Milestone 2c: expansion to 2 x 3 and rebalance | Complete |
 | Milestone 3a: `auth.allow` and mutual TLS | Complete |
 | Milestone 3b: monitoring and alerts | Complete |
+| Raw evidence (command output and log excerpts) | Added in [docs/evidence](docs/evidence) |
+| Screenshots | Added in [screenshots/](screenshots) (see [Screenshots and evidence](#screenshots-and-evidence)) |
 | `fio` baseline | Planned |
 | Ansible automation of the build | Planned |
 | CephFS phase and comparison | Planned |
 
 The full tracker is in [docs/milestones.md](docs/milestones.md). Anything not listed as complete is not implemented.
+
+## Key results
+
+| Drill | What happened |
+|---|---|
+| 1. Graceful node loss | Writes continued with 2 of 3 bricks; the 273-entry heal backlog cleared on return with no commands |
+| 2. Hard failure | The worst client write stall was 70.3 s at the default `network.ping-timeout` of 42 s, and 13.2 s at 10 s; normal writes took about 28 ms |
+| 3. Quorum loss | With 2 of 3 nodes down the mount became unusable for reads too, not read-only as the documentation describes |
+| 4. Split-brain | `bigger-file` and `latest-mtime` both refused; resolved by choosing a source brick |
+| 5. Brick rebuild | A destroyed brick re-admitted with `reset-brick` healed in about 26 s, with matching digests on all three servers |
+| 6. Brick move | `replace-brick` to a new disk healed the whole volume in about 36 s, with no stall for a writing client |
+| 7. Expansion | After `add-brick` to 2 x 3, the first rebalance skipped 320 files on its free-space check; a forced rebalance moved them |
+| 8. Mutual TLS | Clients with no certificate, a self-signed one, or a valid certificate for an unlisted name were refused at three different layers |
+| 9. Monitoring | A crashed brick raised a brick-down alert in about 1 minute and a heal-backlog alert in about 2.5 minutes; both resolved on recovery |
 
 ## A note on GlusterFS today
 
@@ -572,4 +586,4 @@ Raw command output and log excerpts from the drills are in [docs/evidence](docs/
 
 ## TL;DR
 
-Three VMs form a GlusterFS volume (`gv0`) on LVM thin + XFS bricks, replica 3 and since expanded to two replica sets (2 x 3), mounted from a fourth VM with the FUSE client. Nine drills were run and recorded: a graceful node loss heals by itself, a hard failure stalls clients until `network.ping-timeout` expires, losing two of three nodes makes the volume unusable on the tested version, a split-brain needs a deliberate human choice of source brick, a destroyed brick rebuilt with `reset-brick` comes back byte-identical after a manual `heal full`, a brick moved to a new disk with `replace-brick` heals by itself in about 36 seconds with no stall for a writing client, an expansion to 2 x 3 needed a forced rebalance after the first one skipped 320 files on its free-space check, and with mutual TLS on, clients with no certificate, a self-signed one, or a certificate for a name not on the allow list are all refused. All traffic is now encrypted. Prometheus and Grafana watch brick and heal state, and a crashed brick raised a brick-down and a heal-backlog alert within about a minute and two and a half minutes, both resolving after recovery. Evidence is in `docs/evidence`, procedures in `docs/`. Not done yet: benchmarks, Ansible, and the CephFS comparison.
+Three VMs form a GlusterFS volume (`gv0`) on LVM thin and XFS bricks, replica 3 and later expanded to 2 x 3, mounted from a fourth VM with the FUSE client. Nine drills covered failure, recovery, brick replacement, expansion, mutual TLS and alerting; the results are in [Key results](#key-results) and the evidence in `docs/evidence`. Not done yet: `fio` benchmarks, Ansible automation, and the CephFS comparison.

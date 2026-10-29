@@ -23,7 +23,6 @@ Test environment details (OS release, Gluster version) are recorded in the READM
 - The writer did not stop. With 2 of 3 bricks reachable, quorum was satisfied.
 - During the outage, `gluster1` and `gluster2` each listed 273 pending entries and `gluster3` reported `Transport endpoint is not connected`. No entries were in split-brain. The surviving bricks hold the pending marks, which is why they report the entries and the returned brick does not.
 - After `gluster3` returned, the backlog fell to 30 and 27 entries (one reported as possibly healing), then to zero. The self-heal daemon needed no commands.
-- Post-heal verification (file counts and checksums across the bricks) was reported as matching. That output was not archived, so it is not in the evidence folder.
 
 Evidence: [drill1-heal-summary.txt](evidence/drill1-heal-summary.txt).
 
