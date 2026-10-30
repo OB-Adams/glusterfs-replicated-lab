@@ -1,0 +1,57 @@
+# Milestone 4: benchmark baseline, session log from gluster4
+# Captured 2026-10-30 with script(1), times UTC. No private addresses appear in it.
+# Cleaned for reading: terminal control codes removed, the duplicate echoes the terminal draws
+# for pasted commands removed, and fio's live status line reduced to what was left on screen.
+# Output is unchanged. Each progress line from run-bench.sh is printed over the end of fio's last
+# status line for the previous run (see the gluster1 log for the explanation).
+# gluster4 is the client: it ran the direct-I/O check and the gluster-fuse target.
+# "clear" and the run-bench.sh command were pasted together at 21:49; the screen was cleared,
+# then run-bench.sh ran. The two command lines are written here as they were pasted.
+#
+Script started on 2026-10-30 21:02:31+00:00 [TERM="xterm-256color" TTY="/dev/pts/0" COLUMNS="162" LINES="48"]
+root@gluster4:~# clear
+root@gluster4:~# fio --version
+fio-3.35
+root@gluster4:~# uname -r; nproc; free -h | head -2
+5.14.0-759.el9.aarch64
+5
+               total        used        free      shared  buff/cache   available
+Mem:           3.5Gi       554Mi       2.4Gi        37Mi       719Mi       3.0Gi
+root@gluster4:~# df -h /mnt/gv0
+Filesystem      Size  Used Avail Use% Mounted on
+gluster1:/gv0    16G  912M   15G   6% /mnt/gv0
+root@gluster4:~# mkdir -p /mnt/gv0/bench
+root@gluster4:~# fio --name=direct-check --directory=/mnt/gv0/bench --rw=write --bs=1m --size=64m --direct=1 --ioengine=libaio | grep -E 'direct-check|WRITE:|err='
+direct-check: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=1
+direct-check: (groupid=0, jobs=1): err= 0: pid=2580: Fri Oct 30 21:03:10 2026
+  WRITE: bw=182MiB/s (191MB/s), 182MiB/s-182MiB/s (191MB/s-191MB/s), io=64.0MiB (67.1MB), run=351-351msec
+root@gluster4:~# rm -f /mnt/gv0/bench/direct-check*
+root@gluster4:~# clear
+./benchmarks/run-bench.sh gluster-fuse /mnt/gv0/bench 3
+21:49:22  seq-write      run 1 of 3
+21:50:32  seq-write      run 2 of 3MiB/s][w=178 IOPS][eta 00m:00s]
+21:51:43  seq-write      run 3 of 3w=237MiB/s][w=237 IOPS][eta 00m:00s]
+21:52:53  seq-read       run 1 of 3MiB/s][w=211 IOPS][eta 00m:00s]
+21:54:04  seq-read       run 2 of 3MiB/s][r=751 IOPS][eta 00m:00s]
+21:55:14  seq-read       run 3 of 3MiB/s][r=958 IOPS][eta 00m:00s]
+21:56:25  rand-read-4k   run 1 of 3r=824MiB/s][r=823 IOPS][eta 00m:00s]
+21:57:35  rand-read-4k   run 2 of 3=49.8MiB/s][r=12.7k IOPS][eta 00m:26s]
+21:58:45  rand-read-4k   run 3 of 38MiB/s][r=11.7k IOPS][eta 00m:00s]
+21:59:56  rand-write-4k  run 1 of 35MiB/s][r=11.6k IOPS][eta 00m:00s]
+22:01:06  rand-write-4k  run 2 of 36MiB/s][w=3217 IOPS][eta 00m:00s]
+22:02:17  rand-write-4k  run 3 of 32MiB/s][w=3625 IOPS][eta 00m:00s]
+22:03:27  mixed-70-30    run 1 of 32KiB/s][w=2468 IOPS][eta 00m:00s]
+22:04:37  mixed-70-30    run 2 of 35MiB/s,w=8520KiB/s][r=4748,w=2130 IOPS][eta 00m:00s]
+22:05:48  mixed-70-30    run 3 of 34MiB/s,w=8828KiB/s][r=5227,w=2207 IOPS][eta 00m:00s]
+22:06:58  small-files    run 1 of 38MiB/s,w=8140KiB/s][r=4555,w=2035 IOPS][eta 00m:00s]
+22:07:59  small-files    run 2 of 30m:00s]
+22:09:00  small-files    run 3 of 30m:00s]
+22:10:01  done: /root/benchmarks/results/gluster-fuse
+root@gluster4:~# df -h /mnt/gv0
+Filesystem      Size  Used Avail Use% Mounted on
+gluster1:/gv0    16G  4.9G   12G  31% /mnt/gv0
+root@gluster4:~# rm -rf /mnt/gv0/bench
+root@gluster4:~# exit
+exit
+
+Script done on 2026-10-30 22:15:15+00:00 [COMMAND_EXIT_CODE="0"]

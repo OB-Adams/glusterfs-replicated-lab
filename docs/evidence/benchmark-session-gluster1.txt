@@ -1,0 +1,304 @@
+# Milestone 4: benchmark baseline, session log from gluster1
+# Captured 2026-10-30 with script(1), times UTC. No private addresses appear in it.
+# Cleaned for reading: terminal control codes removed, the duplicate echoes the terminal draws
+# for pasted commands removed, and fio's live status line reduced to what was left on screen.
+# Output is unchanged. Each progress line from run-bench.sh is printed over the end of fio's last
+# status line for the previous run, which is why some read "run 2 of 37GiB/s][w=17.1k IOPS]...":
+# the text after "of 3" is the previous run's final status, as in screenshots 46 and 47.
+# gluster1 ran the raw-xfs target and set and reset performance.strict-o-direct.
+# Typed commands that failed and were corrected on the next line are kept (cler, a volume get
+# with an extra argument, geset). The df on brick1/vol showing 2.5G used was taken while the
+# gluster-fuse test files were on the volume; the next one, at 422M, after gluster4 removed them.
+#
+Script started on 2026-10-30 20:53:00+00:00 [TERM="xterm-256color" TTY="/dev/pts/0" COLUMNS="162" LINES="48"]
+root@gluster1:~# cler
+bash: cler: command not found
+root@gluster1:~# clear
+root@gluster1:~# dnf -y install fio
+Last metadata expiration check: 0:47:14 ago on Fri 30 Oct 2026 08:06:13 PM GMT.
+Package fio-3.35-1.el9.aarch64 is already installed.
+Dependencies resolved.
+Nothing to do.
+Complete!
+root@gluster1:~# fio --version
+fio-3.35
+root@gluster1:~# ls
+anaconda-ks.cfg                 drill6-shd-gluster1.txt      drill8-brick-log.txt             drill9-session-gluster1.txt  victim.gluster1.bak
+benchmarks                      drill6-start                 drill8-cmd-history.txt           drill9-shd-gluster1.txt
+benchmark-session-gluster1.txt  drill7-rebalance.log         drill8-glusterd-log.txt          drill9-start
+drill5-gluster1.txt             drill7-session-gluster1.txt  drill8-session-gluster1.txt      lab-ca
+drill6-session-gluster1.txt     drill7-start                 drill9-cmd-history-gluster1.txt  scripts
+root@gluster1:~# uname -r
+5.14.0-759.el9.aarch64
+root@gluster1:~# nproc
+5
+root@gluster1:~# free -h
+               total        used        free      shared  buff/cache   available
+Mem:           3.5Gi       528Mi       2.8Gi        37Mi       407Mi       3.0Gi
+Swap:          2.4Gi          0B       2.4Gi
+root@gluster1:~# ./scripts/check-cluster.sh
+
+== peers ==
+UUID					Hostname 	State
+dafb797c-f2c6-4693-8fd0-b5877f34e70e	gluster2 	Connected
+a4727315-5cf8-47cb-a1a0-2ffbbb3586ae	gluster3 	Connected
+5b24c36c-3aa7-4ec2-9f94-67da01d45b4e	localhost	Connected
+
+== volume status: gv0 ==
+Status of volume: gv0
+Gluster process                             TCP Port  RDMA Port  Online  Pid
+------------------------------------------------------------------------------
+Brick gluster1:/data/glusterfs/brick1/vol   58448     0          Y       2278
+Brick gluster2:/data/glusterfs/brick1/vol   59902     0          Y       2283
+Brick gluster3:/data/glusterfs/brick2/vol   53997     0          Y       2289
+Brick gluster1:/data/glusterfs/brick2/vol   54312     0          Y       2294
+Brick gluster2:/data/glusterfs/brick2/vol   52120     0          Y       2299
+Brick gluster3:/data/glusterfs/brick1/vol   57917     0          Y       2305
+Self-heal Daemon on localhost               N/A       N/A        Y       2311
+Self-heal Daemon on gluster2                N/A       N/A        Y       2316
+Self-heal Daemon on gluster3                N/A       N/A        Y       2323
+
+Task Status of Volume gv0
+------------------------------------------------------------------------------
+Task                 : Rebalance
+ID                   : None
+Status               : reset due to reset-brick
+
+
+== heal summary: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster1:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+
+== split-brain entries: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster1:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster2:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+
+== selected options: gv0 ==
+cluster.quorum-type                      auto
+cluster.server-quorum-type               off
+cluster.self-heal-daemon                 on (DEFAULT)
+network.ping-timeout                     42 (DEFAULT)
+root@gluster1:~# df -h /data/glusterfs/brick1
+Filesystem                     Size  Used Avail Use% Mounted on
+/dev/mapper/vg_gluster-brick1  8.0G  414M  7.6G   6% /data/glusterfs/brick1
+root@gluster1:~# gluster volume set gv0 performance.strict-o-direct on
+volume set: success
+root@gluster1:~# gluster volume get gv0 performance.strict-o-direct on
+
+Usage:
+volume get <VOLNAME|all> <key|all>
+
+root@gluster1:~# gluster volume get gv0 performance.strict-o-direct
+Option                                   Value
+------                                   -----
+performance.strict-o-direct              on
+root@gluster1:~# clear
+root@gluster1:~# ./benchmarks/run-bench.sh raw-xfs /data/glusterfs/brick1/fio-baseline 3
+21:04:51  seq-write      run 1 of 3
+21:06:06  seq-write      run 2 of 37GiB/s][w=17.1k IOPS][eta 00m:00s]
+21:07:22  seq-write      run 3 of 32GiB/s][w=18.6k IOPS][eta 00m:00s]
+21:08:38  seq-read       run 1 of 35GiB/s][w=18.9k IOPS][eta 00m:00s]
+21:09:48  seq-read       run 2 of 30GiB/s][r=21.5k IOPS][eta 00m:00s]
+21:10:59  seq-read       run 3 of 36GiB/s][r=22.1k IOPS][eta 00m:00s]
+21:12:09  rand-read-4k   run 1 of 33GiB/s][r=21.8k IOPS][eta 00m:00s]
+21:13:19  rand-read-4k   run 2 of 3MiB/s][r=155k IOPS][eta 00m:00s]
+21:14:30  rand-read-4k   run 3 of 3MiB/s][r=152k IOPS][eta 00m:00s]
+21:15:40  rand-write-4k  run 1 of 3MiB/s][r=154k IOPS][eta 00m:00s]
+21:16:54  rand-write-4k  run 2 of 3MiB/s][w=131k IOPS][eta 00m:00s]
+21:18:07  rand-write-4k  run 3 of 3MiB/s][w=129k IOPS][eta 00m:00s]
+21:19:21  mixed-70-30    run 1 of 3MiB/s][w=157k IOPS][eta 00m:00s]
+21:20:33  mixed-70-30    run 2 of 3MiB/s,w=167MiB/s][r=99.6k,w=42.6k IOPS][eta 00m:00s]
+21:21:44  mixed-70-30    run 3 of 3MiB/s,w=127MiB/s][r=75.5k,w=32.4k IOPS][eta 00m:00s]
+21:22:56  small-files    run 1 of 3MiB/s,w=140MiB/s][r=83.7k,w=35.9k IOPS][eta 00m:00s]
+21:22:57  small-files    run 2 of 3
+21:22:57  small-files    run 3 of 3
+21:22:58  done: /root/benchmarks/results/raw-xfs
+root@gluster1:~# df -h /data/glusterfs/brick1
+Filesystem                     Size  Used Avail Use% Mounted on
+/dev/mapper/vg_gluster-brick1  8.0G  4.5G  3.6G  56% /data/glusterfs/brick1
+root@gluster1:~# rm -rf /data/glusterfs/brick1/fio-baseline
+root@gluster1:~# df -h /data/glusterfs/brick1
+Filesystem                     Size  Used Avail Use% Mounted on
+/dev/mapper/vg_gluster-brick1  8.0G  414M  7.6G   6% /data/glusterfs/brick1
+root@gluster1:~# df -h /data/glusterfs/brick1/vol/
+Filesystem                     Size  Used Avail Use% Mounted on
+/dev/mapper/vg_gluster-brick1  8.0G  2.5G  5.6G  31% /data/glusterfs/brick1
+root@gluster1:~# df -h /data/glusterfs/brick1/vol/
+Filesystem                     Size  Used Avail Use% Mounted on
+/dev/mapper/vg_gluster-brick1  8.0G  422M  7.6G   6% /data/glusterfs/brick1
+root@gluster1:~# gluster volume reset gv0 performance.strict-o-direct
+volume reset: success: reset volume successful
+root@gluster1:~# gluster volume get gv0 performance.strict-o-direct
+Option                                   Value
+------                                   -----
+performance.strict-o-direct              off (DEFAULT)
+root@gluster1:~# ./scripts/check-cluster.sh
+
+== peers ==
+UUID					Hostname 	State
+dafb797c-f2c6-4693-8fd0-b5877f34e70e	gluster2 	Connected
+a4727315-5cf8-47cb-a1a0-2ffbbb3586ae	gluster3 	Connected
+5b24c36c-3aa7-4ec2-9f94-67da01d45b4e	localhost	Connected
+
+== volume status: gv0 ==
+Status of volume: gv0
+Gluster process                             TCP Port  RDMA Port  Online  Pid
+------------------------------------------------------------------------------
+Brick gluster1:/data/glusterfs/brick1/vol   58448     0          Y       2278
+Brick gluster2:/data/glusterfs/brick1/vol   59902     0          Y       2283
+Brick gluster3:/data/glusterfs/brick2/vol   53997     0          Y       2289
+Brick gluster1:/data/glusterfs/brick2/vol   54312     0          Y       2294
+Brick gluster2:/data/glusterfs/brick2/vol   52120     0          Y       2299
+Brick gluster3:/data/glusterfs/brick1/vol   57917     0          Y       2305
+Self-heal Daemon on localhost               N/A       N/A        Y       2311
+Self-heal Daemon on gluster2                N/A       N/A        Y       2316
+Self-heal Daemon on gluster3                N/A       N/A        Y       2323
+
+Task Status of Volume gv0
+------------------------------------------------------------------------------
+Task                 : Rebalance
+ID                   : None
+Status               : reset due to reset-brick
+
+
+== heal summary: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster1:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster2:/data/glusterfs/brick2/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Connected
+Total Number of entries: 0
+Number of entries in heal pending: 0
+Number of entries in split-brain: 0
+Number of entries possibly healing: 0
+
+
+== split-brain entries: gv0 ==
+Brick gluster1:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster2:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster3:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster1:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster2:/data/glusterfs/brick2/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+Brick gluster3:/data/glusterfs/brick1/vol
+Status: Connected
+Number of entries in split-brain: 0
+
+
+== selected options: gv0 ==
+cluster.quorum-type                      auto
+cluster.server-quorum-type               off
+cluster.self-heal-daemon                 on (DEFAULT)
+network.ping-timeout                     42 (DEFAULT)
+root@gluster1:~# exit
+exit
+
+Script done on 2026-10-30 22:15:13+00:00 [COMMAND_EXIT_CODE="0"]

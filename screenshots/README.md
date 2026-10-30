@@ -11,6 +11,7 @@ This folder holds screenshots of real terminal output from the lab. Each one is 
 - Use the exact file names below. The main README refers to them.
 - Where a command sequence is long or its output scrolls, the commands may be re-run afterwards in a clean terminal to capture a readable image. Screenshots 09 and 10 were captured that way, so their timestamps and counters differ from the session logs in `../docs/evidence`, which remain the record of the drill itself.
 - Browser screenshots are cropped to the page, without the address bar, which shows `gluster4`'s private address. Screenshot 41 was cropped this way after capture.
+- Screenshot 46 was cropped to remove empty terminal space below the output. Screenshot 47 has no command line at the top: the command was pasted together with `clear`, which cleared the screen before the command ran. Screenshot 48 was taken after a fix to `summarize.py`'s small-file figure, from the same results.
 - Screenshot 29 shows the `auth.allow` value covered by a grey box, because it lists the lab's private addresses. Nothing else in it is changed.
 - Screenshots 13 to 16 come from a repeat of drill 6, run after the recorded run had been reversed, to capture clean images. The repeat skipped the client writer, and a `heal full` was run during it, which the recorded run did not need. Its timestamps differ from the drill 6 session logs, which remain the record of the drill.
 
@@ -64,8 +65,12 @@ This folder holds screenshots of real terminal output from the lab. Each one is 
 | `42-drill9-brick-recovered.png` | gluster1 | `volume status gv0 \| grep '^Brick gluster3'`, `heal info summary` | After incident 1's `start force`: brick online, all heal counts 0 |
 | `43-drill9-dashboard-recovered.png` | browser | Grafana, Gluster gv0 | After recovery: both incidents on the time axis, nothing pending or firing |
 | `44-drill9-set-digests.png` | each server | `./scripts/compare-bricks.sh` on the set 2 copy of `drill9` | 149 files with the same digest on all three servers |
+| `45-bench-direct-io-check.png` | gluster4 | `mkdir -p /mnt/gv0/bench`, then `fio --name=direct-check --directory=/mnt/gv0/bench --rw=write --bs=1m --size=64m --direct=1 --ioengine=libaio \| grep -E 'direct-check\|WRITE:\|err='` | A direct-I/O write through the mount with `err= 0` |
+| `46-bench-raw-run.png` | gluster1 | `./benchmarks/run-bench.sh raw-xfs /data/glusterfs/brick1/fio-baseline 3` | The raw baseline's 18 runs and the `done:` line |
+| `47-bench-gluster-run.png` | gluster4 | `./benchmarks/run-bench.sh gluster-fuse /mnt/gv0/bench 3` | The Gluster target's 18 runs and the `done:` line |
+| `48-bench-results.png` | Mac | `python3 benchmarks/summarize.py ~/Downloads/benchmark/results \| tee ~/Downloads/benchmark/results.md` | The median table for both targets and the percentage table |
 
-The procedures are in [../docs/failure-drills.md](../docs/failure-drills.md) for drills 1 to 4, [../docs/brick-replacement.md](../docs/brick-replacement.md) for drills 5 and 6, [../docs/expansion.md](../docs/expansion.md) for drill 7, [../docs/security.md](../docs/security.md) for drill 8, and [../docs/monitoring.md](../docs/monitoring.md) for drill 9.
+The procedures are in [../docs/failure-drills.md](../docs/failure-drills.md) for drills 1 to 4, [../docs/brick-replacement.md](../docs/brick-replacement.md) for drills 5 and 6, [../docs/expansion.md](../docs/expansion.md) for drill 7, [../docs/security.md](../docs/security.md) for drill 8, [../docs/monitoring.md](../docs/monitoring.md) for drill 9, and [../docs/benchmark.md](../docs/benchmark.md) for the benchmark.
 
 ## Adding another screenshot
 

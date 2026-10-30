@@ -1,6 +1,6 @@
 # glusterfs-replicated-lab
 
-A hands-on GlusterFS lab: a three-node replica 3 volume built from scratch on Linux VMs and taken through nine recorded drills. They cover failure (graceful node loss, hard failure, quorum loss and split-brain), brick rebuild and replacement, expansion to a distributed-replicated volume with rebalancing, mutual TLS with certificate-based client authorisation, and Prometheus and Grafana monitoring with alerts. Every drill has captured evidence and operational notes.
+A hands-on GlusterFS lab: a three-node replica 3 volume built from scratch on Linux VMs and taken through nine recorded drills. They cover failure (graceful node loss, hard failure, quorum loss and split-brain), brick rebuild and replacement, expansion to a distributed-replicated volume with rebalancing, mutual TLS with certificate-based client authorisation, and Prometheus and Grafana monitoring with alerts. Every drill has captured evidence and operational notes. A `fio` benchmark baseline, with the job files kept in the repository, measures the volume against the raw filesystem under it.
 
 This is phase 1 of a storage study. Phase 2 will rebuild the same VMs as a CephFS cluster and compare the two systems under the same tests.
 
@@ -14,9 +14,9 @@ This is phase 1 of a storage study. Phase 2 will rebuild the same VMs as a CephF
 | Milestone 2c: expansion to 2 x 3 and rebalance | Complete |
 | Milestone 3a: `auth.allow` and mutual TLS | Complete |
 | Milestone 3b: monitoring and alerts | Complete |
+| Milestone 4: `fio` benchmark baseline | Complete |
 | Raw evidence (command output and log excerpts) | Added in [docs/evidence](docs/evidence) |
 | Screenshots | Added in [screenshots/](screenshots) (see [Screenshots and evidence](#screenshots-and-evidence)) |
-| `fio` baseline | Planned |
 | Ansible automation of the build | Planned |
 | CephFS phase and comparison | Planned |
 
@@ -35,6 +35,14 @@ The full tracker is in [docs/milestones.md](docs/milestones.md). Anything not li
 | 7. Expansion | After `add-brick` to 2 x 3, the first rebalance skipped 320 files on its free-space check; a forced rebalance moved them |
 | 8. Mutual TLS | Clients with no certificate, a self-signed one, or a valid certificate for an unlisted name were refused at three different layers |
 | 9. Monitoring | A crashed brick raised a brick-down alert in about 1 minute and a heal-backlog alert in about 2.5 minutes; both resolved on recovery |
+
+| Benchmark | Through Gluster | Raw XFS under a brick |
+|---|---|---|
+| Random 4 KiB read / write | 12,260 / 3,278 IOPS | 154,184 / 133,920 IOPS |
+| Sequential 1 MiB read / write | 847 / 199 MiB/s | 21,703 / 18,804 MiB/s |
+| Small files created | 322 per second | 31,128 per second |
+
+Medians of three runs with 64 requests in flight. The raw figures run largely at the speed of the host's memory, so only the comparisons mean anything; see [docs/benchmark.md](docs/benchmark.md).
 
 ## A note on GlusterFS today
 
@@ -58,6 +66,7 @@ Upstream GlusterFS development has slowed and Red Hat's commercial Gluster Stora
 - An expansion drill: a second replica set added with `add-brick`, file placement traced through the hash layout on the bricks, a rebalance that skipped files on the free-space rule, and a forced rebalance.
 - Access control and encryption: client addresses restricted with `auth.allow`, and mutual TLS with a lab certificate authority on both the management and data planes, with clients authorised by certificate name.
 - Monitoring: brick, heal and peer metrics from each server through `node_exporter`, Prometheus and Grafana on the client VM with a provisioned dashboard, and five alert rules, two of them exercised by crashing a brick.
+- A benchmark baseline: six `fio` profiles (sequential, random 4 KiB, mixed, small files) run three times each through the client and on the raw filesystem under a brick, with a runner and a summary script that phase 2 reuses unchanged.
 - Helper scripts for health checks, latency-measuring writers and brick comparison.
 
 ## Architecture
@@ -109,8 +118,20 @@ glusterfs-replicated-lab/
 ├── README.md
 ├── LICENSE
 ├── .gitignore
+├── benchmarks/
+│   ├── README.md
+│   ├── run-bench.sh
+│   ├── summarize.py
+│   └── fio/
+│       ├── mixed-70-30.fio
+│       ├── rand-read-4k.fio
+│       ├── rand-write-4k.fio
+│       ├── seq-read.fio
+│       ├── seq-write.fio
+│       └── small-files.fio
 ├── docs/
 │   ├── architecture.md
+│   ├── benchmark.md
 │   ├── brick-replacement.md
 │   ├── build-guide.md
 │   ├── expansion.md
@@ -120,6 +141,12 @@ glusterfs-replicated-lab/
 │   ├── security.md
 │   ├── troubleshooting.md
 │   └── evidence/
+│       ├── benchmark/
+│       │   ├── results.md
+│       │   ├── gluster-fuse/   (18 fio JSON files)
+│       │   └── raw-xfs/        (18 fio JSON files)
+│       ├── benchmark-session-gluster1.txt
+│       ├── benchmark-session-gluster4.txt
 │       ├── drill1-heal-summary.txt
 │       ├── drill2-write-latency.txt
 │       ├── drill3-client-quorum-log.txt
@@ -212,7 +239,11 @@ glusterfs-replicated-lab/
     ├── 41-drill9-dashboard-incident.png
     ├── 42-drill9-brick-recovered.png
     ├── 43-drill9-dashboard-recovered.png
-    └── 44-drill9-set-digests.png
+    ├── 44-drill9-set-digests.png
+    ├── 45-bench-direct-io-check.png
+    ├── 46-bench-raw-run.png
+    ├── 47-bench-gluster-run.png
+    └── 48-bench-results.png
 ```
 
 ## Prerequisites
@@ -558,9 +589,27 @@ Raw command output and log excerpts from the drills are in [docs/evidence](docs/
 
 *The set 2 copies of `drill9` on all three servers, including the brick that crashed: 149 files with the same digest.*
 
+### Benchmark baseline ([details](docs/benchmark.md))
+
+![Direct I/O through the mount](screenshots/45-bench-direct-io-check.png)
+
+*A 64 MiB `O_DIRECT` write through the FUSE mount completing with `err= 0`, confirming the mount accepts direct I/O before the benchmark.*
+
+![Raw filesystem run](screenshots/46-bench-raw-run.png)
+
+*The raw XFS baseline on `gluster1`: six profiles, three runs each. The text after `run N of 3` is the end of fio's last status line from the previous run.*
+
+![Gluster run](screenshots/47-bench-gluster-run.png)
+
+*The same profiles through the Gluster client on `gluster4`.*
+
+![Benchmark summary](screenshots/48-bench-results.png)
+
+*The median of each profile for both targets, and Gluster as a percentage of the raw filesystem.*
+
 ## Known limitations
 
-- Everything runs on one physical machine with shared storage and virtual networking. Latency and throughput numbers are only meaningful relative to each other, not as absolute figures.
+- Everything runs on one physical machine with shared storage and virtual networking. Latency and throughput numbers are only meaningful relative to each other, not as absolute figures. The raw-disk benchmark ran largely from the host's memory, so it is a loose upper bound rather than the SSD's speed.
 - Each timing measurement in the drills is a single run. They show the effect, not a statistical result.
 - In drill 2, the observed stalls were longer than the configured `network.ping-timeout`. The cause is not established.
 - In drill 3, the documentation describes loss of client quorum as making the replica set read-only. On the tested version the mount became unusable for reads as well. The exact log lines are recorded and the version-specific behaviour has not been investigated further.
@@ -570,9 +619,9 @@ Raw command output and log excerpts from the drills are in [docs/evidence](docs/
 
 ## Future improvements
 
-1. `fio` baseline with fixed profiles, reused unchanged in phase 2.
-2. Ansible role that rebuilds the whole lab idempotently.
-3. Phase 2: CephFS on the same VMs, the same failure drills, and a written comparison.
+1. Ansible role that rebuilds the whole lab idempotently.
+2. Phase 2: CephFS on the same VMs, the same failure drills, the same `fio` profiles, and a written comparison.
+3. The Gluster benchmark repeated with TLS off, to measure what encryption costs.
 
 ## References
 
@@ -586,4 +635,4 @@ Raw command output and log excerpts from the drills are in [docs/evidence](docs/
 
 ## TL;DR
 
-Three VMs form a GlusterFS volume (`gv0`) on LVM thin and XFS bricks, replica 3 and later expanded to 2 x 3, mounted from a fourth VM with the FUSE client. Nine drills covered failure, recovery, brick replacement, expansion, mutual TLS and alerting; the results are in [Key results](#key-results) and the evidence in `docs/evidence`. Not done yet: `fio` benchmarks, Ansible automation, and the CephFS comparison.
+Three VMs form a GlusterFS volume (`gv0`) on LVM thin and XFS bricks, replica 3 and later expanded to 2 x 3, mounted from a fourth VM with the FUSE client. Nine drills covered failure, recovery, brick replacement, expansion, mutual TLS and alerting, and a `fio` baseline measured the volume against the raw filesystem under it; the results are in [Key results](#key-results) and the evidence in `docs/evidence`. Not done yet: Ansible automation and the CephFS comparison.

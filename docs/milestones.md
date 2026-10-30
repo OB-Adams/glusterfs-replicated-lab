@@ -7,7 +7,7 @@ Status values: Planned, In progress, Blocked, Complete. A milestone is marked Co
 | 1 | Replicated cluster and failure drills | Complete |
 | 2 | Brick replacement, expansion and rebalance | Complete |
 | 3 | Security and monitoring | Complete |
-| 4 | Benchmark baseline | Planned |
+| 4 | Benchmark baseline | Complete |
 | 5 | Ansible automation | Planned |
 | 6 | CephFS phase and comparison | Planned |
 
@@ -73,11 +73,13 @@ Status values: Planned, In progress, Blocked, Complete. A milestone is marked Co
 
 **3b result (2026-10-28).** Met. `node_exporter` with a textfile script exports brick, heal and peer state from each server; Prometheus and Grafana run on `gluster4` from files in [../monitoring](../monitoring), with five alert rules and a provisioned dashboard. Crashing `gluster3`'s set 2 brick with `kill -9` while a client wrote made `GlusterBrickDown` and `GlusterHealBacklog` go pending at the same evaluation, about 30 seconds after the crash, and then fire. After `volume start gv0 force` the self-heal daemon healed the backlog within seconds without a heal command, and both alerts resolved. The brick was crashed a second time with the same result. The crashed brick's copies matched the other two in its set afterwards. Full write-up in [monitoring.md](monitoring.md).
 
-## Milestone 4: benchmark baseline (planned)
+## Milestone 4: benchmark baseline
 
 **Goal.** `fio` profiles for sequential, random 4k, mixed and small-file workloads, with the exact profiles stored in the repository so phase 2 can reuse them.
 
 **Acceptance criteria.** Results recorded with the caveat that absolute numbers on shared virtual storage are not meaningful.
+
+**Result (2026-10-30).** Met. Six `fio` profiles in [../benchmarks](../benchmarks) ran three times each against the raw XFS filesystem under a brick on `gluster1` and against `gv0` through the FUSE client on `gluster4`, with `O_DIRECT`, `performance.strict-o-direct on` and the page cache dropped before every run. All 36 runs completed without errors and kept 64 requests in flight. Through Gluster, random 4 KiB reads reached 12,260 IOPS and writes 3,278, sequential reads 847 MiB/s and writes 199 MiB/s, and small-file creation 322 files a second; writes cost about four times as much as reads because each goes to three copies, and creating files cost the most. The raw baseline ran largely at the speed of the Mac's memory (18.8 GiB/s sequential writes), so Gluster's figures as a percentage of it (1% to 8%) overstate the cost; the results are recorded as comparisons, with that caveat. The summary script's small-file figure was found to be four times too low and fixed before the write-up. Full write-up in [benchmark.md](benchmark.md).
 
 ## Milestone 5: Ansible automation (planned)
 
